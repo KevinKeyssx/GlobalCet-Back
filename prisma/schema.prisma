@@ -1,0 +1,160 @@
+generator client {
+    provider = "prisma-client-js"
+}
+
+
+datasource db {
+    provider = "postgresql"
+}
+
+
+model Category {
+    id              String        @id @default(ulid())
+    name            String        @unique
+
+    subCategories   Subcategory[]
+
+    createdAt       DateTime      @default(now())
+    updatedAt       DateTime      @updatedAt
+
+    @@map("categories")
+}
+
+
+model Subcategory {
+    id          String    @id @default(ulid())
+    name        String
+
+    categoryId  String
+    category    Category  @relation(fields: [categoryId], references: [id])
+
+    products    Product[]
+
+    createdAt       DateTime      @default(now())
+    updatedAt       DateTime      @updatedAt
+
+    @@map("subcategories")
+}
+
+
+model ProductImage {
+    id          String  @id @default(ulid())
+    url         String
+    alt         String?
+    isMain      Boolean @default(false)
+    order       Int     @default(0)
+
+    productId   String
+    product     Product @relation(fields: [productId], references: [id])
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@map("product_images")
+}
+
+
+model Product {
+    id              String   @id @default(ulid())
+    sku             String   @unique
+    name            String
+    description     String?
+    material        String?
+    technical_specs Json?    @default("{}")
+    active          Boolean  @default(true)
+
+    subcategoryId String
+    subcategory   Subcategory @relation(fields: [subcategoryId], references: [id])
+
+    inKits        KitProduct[]
+    inMobileLabs  MobileLabProduct[]
+    images        ProductImage[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@index([technical_specs])
+
+    @@map("products")
+}
+
+// --- ESTRUCTURAS COMPUESTAS ---
+model Kit {
+    id          String    @id @default(ulid())
+    sku        String    @unique
+    name        String    
+    description String?
+
+    products    KitProduct[]
+    mobileLabs  MobileLabKit[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@map("kits")
+}
+
+// Productos dentro de un kit
+model KitProduct {
+    id        String  @id @default(ulid())
+    quantity  Int     @default(1)
+
+    productId String
+    product   Product @relation(fields: [productId], references: [id])
+
+    kitId     String
+    kit       Kit     @relation(fields: [kitId], references: [id])
+
+    @@unique([productId, kitId])
+
+    @@map("kit_products")
+}
+
+// --- Estructura de Laboratorio Móvil ---
+model MobileLab {
+    id          String  @id @default(ulid())
+    sku        String  @unique
+    name        String          
+    description String?
+    dimensions  String?
+
+    products    MobileLabProduct[]
+    kits        MobileLabKit[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@map("mobile_labs")
+}
+
+// Productos dentro de un laboratorio móvil
+model MobileLabProduct {
+    id          String    @id @default(ulid())
+    quantity    Int       @default(1)
+
+    productId   String
+    product     Product   @relation(fields: [productId], references: [id])
+
+    mobileLabId String
+    mobileLab   MobileLab @relation(fields: [mobileLabId], references: [id])
+
+    @@unique([productId, mobileLabId])
+
+    @@map("mobile_lab_products")
+}
+
+// Kits dentro de un laboratorio móvil
+model MobileLabKit {
+    id          String    @id @default(ulid())
+    quantity    Int       @default(1)
+
+    kitId       String
+    kit         Kit       @relation(fields: [kitId], references: [id])
+
+    mobileLabId String
+    mobileLab   MobileLab @relation(fields: [mobileLabId], references: [id])
+
+    @@unique([kitId, mobileLabId])
+
+    @@map("mobile_lab_kits")
+}
