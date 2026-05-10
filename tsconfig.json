@@ -18,12 +18,17 @@
         "strictBindCallApply": false,
         "noFallthroughCasesInSwitch": false,
         "paths": {
-            "@config/*"     : ["./src/config/*"],
-            "@common/*"     : ["./src/common/*"],
-            "@services/*"   : ["./src/services/*"],
-            "@prisma/*"     : ["./src/prisma/*"],
-            "@seed/*"       : ["./src/seed/*"],
-            "@app/*"        : ["./src/*"],
+            "@config/*"         : ["./src/config/*"],
+            "@common/*"         : ["./src/common/*"],
+            "@services/*"       : ["./src/services/*"],
+            "@prisma/*"         : ["./src/prisma/*"],
+            "@seed/*"           : ["./src/seed/*"],
+            "@products/*"       : ["./src/products/*"],
+            "@categories/*"     : ["./src/categories/*"],
+            "@sub-categories/*"  : ["./src/sub-categories/*"],
+            "@kits/*"           : ["./src/kits/*"],
+            "@mobile-labs/*"    : ["./src/mobile-labs/*"],
+            "@app/*"            : ["./src/*"],
         }
     }
 }
