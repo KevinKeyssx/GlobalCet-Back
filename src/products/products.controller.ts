@@ -7,14 +7,15 @@ import {
 	Param,
 	Delete,
 	Query
-} from '@nestjs/common';
+}                   from '@nestjs/common';
+import { Product }  from '@prisma/client';
 
-import { Product }                      from '@prisma/client';
-import { ProductsService }              from './products.service';
-import { CreateProductDto }             from './dto/create-product.dto';
-import { UpdateProductDto }             from './dto/update-product.dto';
-import { ProductPaginationFilterDto }   from './dto/pagination-filter.dto';
 import { PaginatedResult }              from '@common/interfaces/paginated-result.interface';
+import { ProductsService }              from '@products/products.service';
+import { CreateProductDto }             from '@products/dto/create-product.dto';
+import { UpdateProductDto }             from '@products/dto/update-product.dto';
+import { ProductPaginationFilterDto }   from '@products/dto/pagination-filter.dto';
+import { IProduct }                     from '@products/models/product.interface';
 
 
 @Controller( 'products' )
@@ -28,7 +29,7 @@ export class ProductsController {
 	@Post()
 	create(
 		@Body() createProductDto: CreateProductDto
-	): Promise<Product> {
+	): Promise<IProduct> {
 		return this.productsService.create( createProductDto );
 	}
 
@@ -36,7 +37,7 @@ export class ProductsController {
 	@Get()
 	findAll(
 		@Query() filterDto: ProductPaginationFilterDto
-	): Promise<PaginatedResult<Product>> {
+	): Promise<PaginatedResult<IProduct>> {
 		return this.productsService.findAll( filterDto );
 	}
 
@@ -51,7 +52,7 @@ export class ProductsController {
 	findOne(
 		@Param( 'id' ) id: string,
 		@Query() filterDto: ProductPaginationFilterDto
-	): Promise<Product> {
+	): Promise<IProduct> {
 		return this.productsService.findOne( id, filterDto );
 	}
 
@@ -60,7 +61,7 @@ export class ProductsController {
 	update(
 		@Param( 'id' ) id: string,
 		@Body() updateProductDto: UpdateProductDto
-	): Promise<Product> {
+	): Promise<IProduct> {
 		return this.productsService.update( id, updateProductDto );
 	}
 
