@@ -1,39 +1,49 @@
+import { ApiProperty, ApiPropertyOptional, IntersectionType } from '@nestjs/swagger';
+
 import {
-	IsBoolean,
-	IsNotEmpty,
 	IsOptional,
 	IsObject,
 	IsString,
-	Length
-} from 'class-validator';
+	IsNotEmpty,
+	Length,
+}                       from 'class-validator';
+import { Transform }    from 'class-transformer';
+
+import { NameDto }                  from '@common/dto/name.dto';
+import { IncludesItemsDto }         from '@products/dto/includes-items.dto';
+import { ProductFieldsFilterDto }   from '@products/dto/fields-product.dto';
 
 
-export class CreateProductDto {
+export class CreateProductDto extends IntersectionType(
+	NameDto,
+	IncludesItemsDto,
+	ProductFieldsFilterDto
+) {
 
-	@IsString()
-	@IsNotEmpty()
-	@Length( 1, 200 )
-	name: string;
-
+	@ApiPropertyOptional( {
+		description : 'Product description',
+		example     : 'This is a description of the product'
+	} )
 	@IsString()
 	@IsOptional()
-	description?: string;
+	description?     : string;
 
-	@IsString()
-	@IsOptional()
-	material?: string;
-
+	@ApiPropertyOptional( {
+		description : 'Technical specifications in JSON format',
+		example     : { color : 'red', size : 'L' }
+	} )
 	@IsObject()
 	@IsOptional()
-	technical_specs?: Record<string, any>;
+	@Transform( ( { value } ) => ( typeof value === 'string' ? JSON.parse( value ) : value ) )
+	technical_specs? : Record<string, any>;
 
-	@IsBoolean()
-	@IsOptional()
-	active?: boolean;
-
+	@ApiProperty( {
+		description : 'Subcategory ID (ULID)',
+		example     : '01ARZ3NDEKTSV4RRFFQ6KHNQZS'
+	} )
 	@IsString()
 	@IsNotEmpty()
 	@Length( 26, 26 )
-	subcategoryId: string;
+	subcategoryId    : string;
 
 }
