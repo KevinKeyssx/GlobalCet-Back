@@ -1,13 +1,14 @@
 import { Injectable } from '@nestjs/common';
 
+import { PaginatedResult }              from '@common/interfaces/paginated-result.interface';
+import { generateProductSku }           from '@common/utils/generate-sku.util';
 import { Prisma, Product }              from '@prisma/client';
 import { PrismaException }              from '@prisma/prisma-catch';
 import { PrismaService }                from '@prisma/prisma.service';
-import { CreateProductDto }             from './dto/create-product.dto';
-import { UpdateProductDto }             from './dto/update-product.dto';
-import { ProductPaginationFilterDto }   from './dto/pagination-filter.dto';
-import { PaginatedResult }              from '@common/interfaces/paginated-result.interface';
-import { generateProductSku }           from '@common/utils/generate-sku.util';
+import { CreateProductDto }             from '@products/dto/create-product.dto';
+import { UpdateProductDto }             from '@products/dto/update-product.dto';
+import { ProductPaginationFilterDto }   from '@products/dto/pagination-filter.dto';
+import { IProduct }                     from '@products/models/product.interface';
 
 
 @Injectable()
@@ -18,32 +19,102 @@ export class ProductsService {
 	) {}
 
 
-	async create( createProductDto: CreateProductDto ): Promise<Product> {
-		try {
+	#getProductSelect(
+        includeImages       : boolean = false,
+        includeKits         : boolean = false,
+        includeMobileLabs   : boolean = false
+    ) {
+		return {
+			id              : true,
+			sku             : true,
+			name            : true,
+			description     : true,
+			material        : true,
+			technical_specs : true,
+			active          : true,
+			createdAt       : true,
+			updatedAt       : true,
+			images          : {
+				where  : includeImages ? {} : { isMain: true },
+				select : {
+					id     : true,
+					url    : true,
+					alt    : true,
+					isMain : true,
+					order  : true,
+				},
+			},
+			...( includeKits && {
+				inKits : {
+					select : {
+						id       : true,
+						quantity : true,
+						kit      : {
+							select : {
+								id          : true,
+								sku         : true,
+								name        : true,
+								description : true,
+							},
+						},
+					},
+				},
+			}),
+			...( includeMobileLabs && {
+				inMobileLabs : {
+					select : {
+						id        : true,
+						quantity  : true,
+						mobileLab : {
+							select : {
+								id          : true,
+								sku         : true,
+								name        : true,
+								description : true,
+								dimensions  : true,
+							},
+						},
+					},
+				},
+			}),
+		};
+	}
+
+
+	async create( createProductDto: CreateProductDto ): Promise<IProduct> {
+        const {
+            includeImages,
+            includeKits,
+            includeMobileLabs,
+            ...data
+        } = createProductDto;
+
+        try {
 			const subcategory = await this.prisma.subcategory.findUniqueOrThrow({
-				where   : { id: createProductDto.subcategoryId },
+				where   : { id: data.subcategoryId },
 				include : { category: true },
 			});
 
 			const sku = generateProductSku(
 				subcategory.category.name,
 				subcategory.name,
-				createProductDto.name
+				data.name
 			);
 
 			return await this.prisma.product.create({
 				data : {
-					...createProductDto,
+					...data,
 					sku,
 				},
-			});
+				select : this.#getProductSelect( includeImages, includeKits, includeMobileLabs ),
+			}) as unknown as IProduct;
 		} catch ( error ) {
 			throw PrismaException.catch( error );
 		}
 	}
 
 
-	async findAll( filterDto: ProductPaginationFilterDto ): Promise<PaginatedResult<Product>> {
+	async findAll( filterDto: ProductPaginationFilterDto ): Promise<PaginatedResult<IProduct>> {
 		try {
 			const {
 				page = 1,
@@ -74,12 +145,11 @@ export class ProductsService {
 					where,
 					skip,
 					take    : size,
-					include : {
-						images       : includeImages,
-						inKits       : includeKits,
-						inMobileLabs : includeMobileLabs,
+					select  : this.#getProductSelect( includeImages, includeKits, includeMobileLabs ),
+					orderBy : {
+						createdAt : 'desc',
 					},
-				}),
+				}) as unknown as IProduct[],
 			]);
 
 			return {
@@ -109,13 +179,15 @@ export class ProductsService {
 
 			for ( const product of products ) {
 				const specs = product.technical_specs as Record<string, any>;
-				if ( !specs || typeof specs !== 'object' ) continue;
 
-				for ( const [ key, value ] of Object.entries( specs ) ) {
-					if ( !filters[ key ] ) {
+                if ( !specs || typeof specs !== 'object' ) continue;
+
+				for ( const [ key, value ] of Object.entries( specs )) {
+					if ( !filters[ key ]) {
 						filters[ key ] = new Set();
 					}
-					// Only aggregate primitive types or simple arrays, to avoid deep objects in filters
+
+                    // Only aggregate primitive types or simple arrays, to avoid deep objects in filters
 					if ( typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' ) {
 						filters[ key ].add( value );
 					}
@@ -123,50 +195,53 @@ export class ProductsService {
 			}
 
 			const result: Record<string, any[]> = {};
-			for ( const [ key, valueSet ] of Object.entries( filters ) ) {
+
+            for ( const [ key, valueSet ] of Object.entries( filters ) ) {
 				result[ key ] = Array.from( valueSet );
 			}
 
 			return result;
-
 		} catch ( error ) {
 			throw PrismaException.catch( error );
 		}
 	}
 
 
-	async findOne( id: string, filterDto: ProductPaginationFilterDto ): Promise<Product> {
+	async findOne( id: string, filterDto: ProductPaginationFilterDto ): Promise<IProduct> {
 		try {
 			const { includeImages, includeKits, includeMobileLabs } = filterDto;
 
 			return await this.prisma.product.findUniqueOrThrow({
-				where   : { id },
-				include : {
-					images       : includeImages,
-					inKits       : includeKits,
-					inMobileLabs : includeMobileLabs,
-				},
-			});
+				where  : { id },
+				select : this.#getProductSelect( includeImages, includeKits, includeMobileLabs ),
+			}) as unknown as IProduct;
 		} catch ( error ) {
 			throw PrismaException.catch( error );
 		}
 	}
 
 
-	async update( id: string, updateProductDto: UpdateProductDto ): Promise<Product> {
+	async update( id: string, updateProductDto: UpdateProductDto ): Promise<IProduct> {
 		try {
+            const {
+                includeImages,
+                includeKits,
+                includeMobileLabs,
+                ...data
+            } = updateProductDto;
+
 			let newSku: string | undefined;
 
 			const currentProduct = await this.prisma.product.findUniqueOrThrow({
 				where : { id },
 			});
 
-			const isSubcategoryChanged = updateProductDto.subcategoryId !== undefined && updateProductDto.subcategoryId !== currentProduct.subcategoryId;
-			const isNameChanged        = updateProductDto.name !== undefined && updateProductDto.name !== currentProduct.name;
+			const isSubcategoryChanged = data.subcategoryId !== undefined && data.subcategoryId !== currentProduct.subcategoryId;
+			const isNameChanged        = data.name !== undefined && data.name !== currentProduct.name;
 
 			if ( isSubcategoryChanged || isNameChanged ) {
-				const targetSubcategoryId = updateProductDto.subcategoryId || currentProduct.subcategoryId;
-				const targetName          = updateProductDto.name || currentProduct.name;
+				const targetSubcategoryId = data.subcategoryId || currentProduct.subcategoryId;
+				const targetName          = data.name || currentProduct.name;
 
 				const subcategory = await this.prisma.subcategory.findUniqueOrThrow({
 					where   : { id: targetSubcategoryId },
@@ -183,10 +258,11 @@ export class ProductsService {
 			return await this.prisma.product.update({
 				where : { id },
 				data  : {
-					...updateProductDto,
+					...data,
 					...( newSku && { sku: newSku } ),
 				},
-			});
+				select : this.#getProductSelect( includeImages, includeKits, includeMobileLabs ),
+			}) as unknown as IProduct;
 		} catch ( error ) {
 			throw PrismaException.catch( error );
 		}
