@@ -7,6 +7,7 @@ import {
     Param,
     Delete
 } from '@nestjs/common';
+import { ApiTags, ApiBody } from '@nestjs/swagger';
 
 import { SubCategoriesService } from './sub-categories.service';
 import { CreateSubCategoryDto } from './dto/create-sub-category.dto';
@@ -14,6 +15,7 @@ import { UpdateSubCategoryDto } from './dto/update-sub-category.dto';
 import { Subcategory }          from '@prisma/client';
 
 
+@ApiTags( 'Sub-Categories' )
 @Controller( 'sub-categories' )
 export class SubCategoriesController {
 
@@ -23,6 +25,7 @@ export class SubCategoriesController {
 
 
     @Post()
+    @ApiBody( { type : CreateSubCategoryDto } )
     create(
         @Body() createSubCategoryDto: CreateSubCategoryDto
     ): Promise<Subcategory> {
@@ -45,6 +48,7 @@ export class SubCategoriesController {
 
 
     @Patch( ':id' )
+    @ApiBody( { type : UpdateSubCategoryDto } )
     update(
         @Param( 'id' ) id: string,
         @Body() updateSubCategoryDto: UpdateSubCategoryDto
