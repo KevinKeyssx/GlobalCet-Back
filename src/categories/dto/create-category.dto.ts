@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import {
     IsNotEmpty,
     IsString,
@@ -7,6 +8,10 @@ import {
 
 export class CreateCategoryDto {
 
+    @ApiProperty( {
+        description : 'Category name',
+        example     : 'Electronics',
+    } )
     @IsString()
     @IsNotEmpty()
     @Length( 1, 200, {
