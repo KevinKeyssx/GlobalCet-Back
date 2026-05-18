@@ -8,14 +8,17 @@ import {
     Delete,
     Query,
     ParseBoolPipe
-} from '@nestjs/common';
+}                           from '@nestjs/common';
+import { ApiTags, ApiBody } from '@nestjs/swagger';
+
+import { Category } from '@prisma/client';
 
 import { CategoriesService } from '@categories/categories.service';
 import { CreateCategoryDto } from '@categories/dto/create-category.dto';
 import { UpdateCategoryDto } from '@categories/dto/update-category.dto';
-import { Category }          from '@prisma/client';
 
 
+@ApiTags( 'Categories' )
 @Controller( 'categories' )
 export class CategoriesController {
 
@@ -25,6 +28,7 @@ export class CategoriesController {
 
 
     @Post()
+    @ApiBody( { type : CreateCategoryDto } )
     create(
         @Body() createCategoryDto: CreateCategoryDto
     ): Promise<Category> {
@@ -34,7 +38,7 @@ export class CategoriesController {
 
     @Get()
     findAll(
-        @Query( 'includeSubcategories', new ParseBoolPipe({ optional: true }) ) includeSubcategories: boolean = false
+        @Query( 'includeSubcategories', new ParseBoolPipe( { optional : true } ) ) includeSubcategories: boolean = false
     ): Promise<Category[]> {
         return this.categoriesService.findAll( includeSubcategories );
     }
@@ -43,13 +47,14 @@ export class CategoriesController {
     @Get( ':id' )
     findOne(
         @Param( 'id' ) id: string,
-        @Query( 'includeSubcategories', new ParseBoolPipe({ optional: true }) ) includeSubcategories: boolean = false
+        @Query( 'includeSubcategories', new ParseBoolPipe( { optional : true } ) ) includeSubcategories: boolean = false
     ): Promise<Category> {
         return this.categoriesService.findOne( id, includeSubcategories );
     }
 
 
     @Patch( ':id' )
+    @ApiBody( { type : UpdateCategoryDto } )
     update(
         @Param( 'id' ) id: string,
         @Body() updateCategoryDto: UpdateCategoryDto
