@@ -15,7 +15,7 @@ export enum ERROR_MESSAGES {
     NOT_UNIQUE      = 'P2004',
     NOT_NULL        = 'P2005',
     NOT_EXIST       = 'P2025',
-    UNKNOWN         = 'P0000x'
+    UNKNOWN         = 'P0000x',
 }
 
 
@@ -43,6 +43,11 @@ export class PrismaException {
         if ( exception.status === 404 ) {
             this.#logger.error( response );
             throw new NotFoundException( response );
+        }
+
+        if ( exception.status === 409 ) {
+            this.#logger.error( response );
+            throw new BadRequestException( response );
         }
 
         if ( exception.status === 422 ) {
