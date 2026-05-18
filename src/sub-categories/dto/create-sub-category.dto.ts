@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import {
     IsNotEmpty,
     IsString,
@@ -10,6 +11,10 @@ import { CreateCategoryDto } from '@categories/dto/create-category.dto';
 
 export class CreateSubCategoryDto extends CreateCategoryDto {
 
+    @ApiProperty( {
+        description : 'Category ID (ULID)',
+        example     : '01ARZ3NDEKTSV4RRFFQ6KHNQZS',
+    } )
     @IsString()
     @IsNotEmpty()
     @Matches( /^[0-9A-HJKMNP-TV-Z]{26}$/, {
