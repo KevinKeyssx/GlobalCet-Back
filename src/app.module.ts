@@ -3,10 +3,13 @@ import { Module } from '@nestjs/common';
 import { AppController }        from '@app/app.controller';
 import { ProductsModule }       from '@products/products.module';
 import { KitsModule }           from '@kits/kits.module';
-import { MobileLabsModule }     from '@mobile-labs/mobile-labs.module';
 import { CategoriesModule }     from '@categories/categories.module';
-import { PrismaModule }         from '@prisma/prisma.module';
+import { MobileLabsModule }     from '@mobile-labs/mobile-labs.module';
 import { SubCategoriesModule }  from '@sub-categories/sub-categories.module';
+import { MaterialsModule }      from '@materials/materials.module';
+import { KitCategoriesModule }  from '@kit-categories/kit-categories.module';
+import { LabCategoriesModule }  from '@lab-categories/lab-categories.module';
+import { PrismaModule }         from '@prisma/prisma.module';
 
 
 @Module({
@@ -16,7 +19,10 @@ import { SubCategoriesModule }  from '@sub-categories/sub-categories.module';
         MobileLabsModule,
         CategoriesModule,
         PrismaModule,
-        SubCategoriesModule
+        SubCategoriesModule,
+        MaterialsModule,
+        KitCategoriesModule,
+        LabCategoriesModule
     ],
     controllers : [ AppController ],
 })
