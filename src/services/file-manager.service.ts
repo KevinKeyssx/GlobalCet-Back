@@ -24,11 +24,15 @@ export interface IUploadMultiplePayload {
 }
 
 
+export interface ResponeFileUpload {
+    secure_url    : string;
+    public_id     : string;
+    resource_type : string;
+}
+
+
 export interface ICloudinaryMultipleUploadResponse {
-    successes : Array<{
-        secure_url  : string;
-        public_id   : string;
-    }>;
+    successes : Array<ResponeFileUpload>;
     failures : Array<{
         filename : string;
         error    : string;
@@ -70,7 +74,7 @@ export class FileManagerService {
     async uploadMultiple(
         files       : Express.Multer.File[],
         subfolderId?: string
-    ) : Promise<Array<{ secure_url : string; public_id : string }>> {
+    ) : Promise<Array<ResponeFileUpload>> {
         if ( !files || files.length === 0 ) return [];
 
         try {
@@ -121,8 +125,9 @@ export class FileManagerService {
                 }
 
                 return response.successes.map( success => ({
-                    secure_url  : success.secure_url,
-                    public_id   : success.public_id,
+                    secure_url    : success.secure_url,
+                    public_id     : success.public_id,
+                    resource_type : success.resource_type,
                 }));
             });
         } catch ( error ) {
