@@ -1,7 +1,10 @@
 import { ConflictException, Injectable, BadRequestException } from '@nestjs/common';
-import { ENVS }                                               from '@config/envs';
 
-
+import {
+    getFileNameWithExtension,
+    mapResourceTypeToAttachmentType
+}                                       from '@common/utils/file.utils';
+import { ENVS }                         from '@config/envs';
 import { PaginatedResult }              from '@common/interfaces/paginated-result.interface';
 import { Prisma, Product }              from '@prisma/client';
 import { PrismaException }              from '@prisma/prisma-catch';
@@ -41,7 +44,7 @@ export class ProductsService {
 			active          : true,
 			createdAt       : true,
 			updatedAt       : true,
-			images          : {
+			files           : {
 				where  : includeImages ? {} : { isMain: true },
 				select : {
 					id     : true,
@@ -97,11 +100,12 @@ export class ProductsService {
             includeKits,
             includeMobileLabs,
             imagesInfo,
+            files: _,
             ...data
         } = createProductDto;
 
         const productId = ulid();
-        let uploadedImages: Array<{ secure_url : string; public_id : string }> = [];
+        let uploadedImages: Array<{ secure_url : string; public_id : string; resource_type : string }> = [];
 
         try {
             const skuExists = await this.prisma.product.findUnique({
@@ -114,30 +118,48 @@ export class ProductsService {
             }
 
             if ( files && files.length > 0 ) {
-                const validFiles = files.filter( f => f.mimetype.startsWith( 'image/' ) || f.mimetype.startsWith( 'video/' ));
+                const validFiles = files;
 
                 if ( validFiles.length > 0 ) {
                     uploadedImages = await this.fileManagerService.uploadMultiple( validFiles, productId );
                 }
             }
 
+            let hasMainAssigned = false;
+            let visualIndex     = 0;
+
             const imagesCreate = uploadedImages.map( ( item, index ) => {
-                const info = imagesInfo?.[ index ];
+                const type = mapResourceTypeToAttachmentType( item.resource_type, item.secure_url );
+                const isVisual = type === 'IMAGE' || type === 'VIDEOS';
+                const info     = imagesInfo?.[ index ];
+
+                let isMain                  = false;
+                let order: number | null    = null;
+
+                if ( isVisual ) {
+                    isMain = info?.isMain ?? ( !hasMainAssigned && visualIndex === 0 );
+                    if ( isMain ) {
+                        hasMainAssigned = true;
+                    }
+                    order = info?.order ?? visualIndex;
+                    visualIndex++;
+                }
 
                 return {
-                    url		: item.public_id,
-                    alt		: info?.alt || null,
-                    isMain	: info?.isMain ?? ( index === 0 ),
-                    order	: info?.order ?? index,
+                    url             : getFileNameWithExtension( item.secure_url ),
+                    alt             : info?.alt || null,
+                    isMain,
+                    order,
+                    attachmentType  : type,
                 };
             });
 
 			return await this.prisma.product.create({
 				data : {
                     id : productId,
-					...data,
+                    ...data,
                     ...( imagesCreate.length > 0 && {
-                        images : {
+                        files : {
                             create : imagesCreate,
                         }
                     }),
@@ -178,7 +200,7 @@ export class ProductsService {
 			const where: Prisma.ProductWhereInput = {
 				// ...( name && { name: { contains: name, mode: 'insensitive' } } ),
 				// ...( sku && { sku: { contains: sku, mode: 'insensitive' } } ),
-				...( material && { material: { contains: material, mode: 'insensitive' } } ),
+				...( material && { material : { name : { contains : material, mode : 'insensitive' } } } ),
 				...( active !== undefined && { active } ),
 				...( subcategories && subcategories.length > 0 && { subcategoryId: { in: subcategories } } ),
 			};
@@ -271,6 +293,7 @@ export class ProductsService {
                 includeImages,
                 includeKits,
                 includeMobileLabs,
+                files,
                 ...data
             } = updateProductDto;
 
@@ -298,7 +321,7 @@ export class ProductsService {
 
     async deleteProductImage( productId : string, imageId : string ) : Promise<{ message : string }> {
         try {
-            const image = await this.prisma.productImage.findFirstOrThrow({
+            const image = await this.prisma.productFile.findFirstOrThrow({
                 where : {
                     id			: imageId,
                     productId	: productId,
@@ -307,12 +330,12 @@ export class ProductsService {
 
             await this.fileManagerService.deleteFiles( productId, [ image.url ] );
 
-            await this.prisma.productImage.delete({
+            await this.prisma.productFile.delete({
                 where : { id : imageId },
             });
 
             if ( image.isMain ) {
-                const nextMainImage = await this.prisma.productImage.findFirst({
+                const nextMainImage = await this.prisma.productFile.findFirst({
                     where : {
                         productId,
                         id			: { not : imageId },
@@ -323,7 +346,7 @@ export class ProductsService {
                 });
 
                 if ( nextMainImage ) {
-                    await this.prisma.productImage.update({
+                    await this.prisma.productFile.update({
                         where : { id : nextMainImage.id },
                         data  : { isMain : true },
                     });
@@ -345,7 +368,7 @@ export class ProductsService {
         try {
             const { imagesInfo } = uploadProductImagesDto;
 
-            const currentImages = await this.prisma.productImage.findMany({
+            const currentImages = await this.prisma.productFile.findMany({
                 where   : { productId },
                 orderBy : { order : 'asc' },
             });
@@ -363,34 +386,51 @@ export class ProductsService {
                 );
             }
 
-            const validFiles = files.filter( f => f.mimetype.startsWith( 'image/' ) || f.mimetype.startsWith( 'video/' ) );
-
-            if ( validFiles.length === 0 ) {
-                throw new BadRequestException( 'No se proporcionaron imágenes o videos válidos para subir' );
+            if ( !files || files.length === 0 ) {
+                throw new BadRequestException( 'No se proporcionaron archivos para subir' );
             }
+
+            const validFiles = files;
 
             const uploadedImages = await this.fileManagerService.uploadMultiple( validFiles, productId );
 
-            const maxOrder = currentImages.reduce( ( max, img ) => img.order > max ? img.order : max, -1 );
+            const maxOrder = currentImages.reduce( ( max, img ) => ( img.order !== null && img.order > max ) ? img.order : max, -1 );
             let nextOrder  = maxOrder + 1;
 
-            const hasMain = currentImages.some( img => img.isMain );
+            const hasMain       = currentImages.some( img => img.isMain );
+            let hasMainAssigned = hasMain;
+            let visualIndex     = 0;
 
             const imagesCreate = uploadedImages.map( ( item, index ) => {
-                const info = imagesInfo?.[ index ];
+                const type = mapResourceTypeToAttachmentType( item.resource_type, item.secure_url );
+                const isVisual = type === 'IMAGE' || type === 'VIDEOS';
+                const info     = imagesInfo?.[ index ];
+
+                let isMain                  = false;
+                let order: number | null    = null;
+
+                if ( isVisual ) {
+                    isMain = info?.isMain ?? ( !hasMainAssigned && visualIndex === 0 );
+                    if ( isMain ) {
+                        hasMainAssigned = true;
+                    }
+                    order = info?.order ?? nextOrder++;
+                    visualIndex++;
+                }
 
                 return {
-                    url		: item.public_id,
-                    alt		: info?.alt || null,
-                    isMain	: info?.isMain ?? ( !hasMain && index === 0 ),
-                    order	: info?.order ?? nextOrder++,
+                    url             : getFileNameWithExtension( item.secure_url ),
+                    alt             : info?.alt || null,
+                    isMain,
+                    order,
+                    attachmentType  : type,
                 };
             });
 
             return await this.prisma.product.update({
                 where : { id : productId },
                 data  : {
-                    images : {
+                    files : {
                         create : imagesCreate,
                     },
                 },
@@ -409,7 +449,7 @@ export class ProductsService {
         try {
             const { imagesInfo } = updateProductImagesDto;
 
-            const currentImages = await this.prisma.productImage.findMany({
+            const currentImages = await this.prisma.productFile.findMany({
                 where : { productId },
             });
 
@@ -458,7 +498,7 @@ export class ProductsService {
 
             await this.prisma.$transaction(
                 normalizedInfo.map( info => 
-                    this.prisma.productImage.update({
+                    this.prisma.productFile.update({
                         where : { id : info.id },
                         data  : {
                             alt		: info.alt,
@@ -483,7 +523,7 @@ export class ProductsService {
         try {
             const { imageIds } = deleteProductImagesDto;
 
-            const images = await this.prisma.productImage.findMany({
+            const images = await this.prisma.productFile.findMany({
                 where : {
                     id			: { in : imageIds },
                     productId	: productId,
@@ -498,7 +538,7 @@ export class ProductsService {
 
             await this.fileManagerService.deleteFiles( productId, fileNames );
 
-            await this.prisma.productImage.deleteMany({
+            await this.prisma.productFile.deleteMany({
                 where : {
                     id : { in : imageIds },
                 },
@@ -507,7 +547,7 @@ export class ProductsService {
             const hasMainDeleted = images.some( img => img.isMain === true );
 
             if ( hasMainDeleted ) {
-                const nextMainImage = await this.prisma.productImage.findFirst({
+                const nextMainImage = await this.prisma.productFile.findFirst({
                     where : {
                         productId,
                         id			: { notIn : imageIds },
@@ -518,7 +558,7 @@ export class ProductsService {
                 });
 
                 if ( nextMainImage ) {
-                    await this.prisma.productImage.update({
+                    await this.prisma.productFile.update({
                         where : { id : nextMainImage.id },
                         data  : { isMain : true },
                     });
