@@ -4,12 +4,13 @@ export interface IProduct {
 	sku             : string;
 	name            : string;
 	description     : string | null;
-	material        : string | null;
+	material        : any;
+    materialId?      : string;
 	technical_specs : any;
 	active          : boolean;
 	createdAt       : Date;
 	updatedAt       : Date;
-	images          : IProductImage[];
+	files           : IProductImage[];
 	inKits?         : IInKit[];
 	inMobileLabs?   : IInMobileLab[];
 }
