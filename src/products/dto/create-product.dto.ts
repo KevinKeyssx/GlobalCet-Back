@@ -22,7 +22,6 @@ export class CreateProductDto extends IntersectionType(
     UploadFilesDto,
 	NameDto,
 	IncludesItemsDto,
-	ProductFieldsFilterDto
 ) {
 
 	@ApiPropertyOptional( {
@@ -62,6 +61,16 @@ export class CreateProductDto extends IntersectionType(
 	@IsNotEmpty()
 	@Length( 26, 26 )
 	subcategoryId: string;
+
+
+    @ApiProperty( {
+		description : 'Material ID (ULID)',
+		example     : '01ARZ3NDEKTSV4RRFFQ6KHNQZS'
+	} )
+	@IsString()
+	@IsNotEmpty()
+	@Length( 26, 26 )
+	materialId: string;
 
 
     @ApiPropertyOptional( {
