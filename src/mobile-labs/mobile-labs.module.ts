@@ -1,9 +1,12 @@
 import { Module } from '@nestjs/common';
-import { MobileLabsService } from './mobile-labs.service';
-import { MobileLabsController } from './mobile-labs.controller';
 
-@Module({
-  controllers: [MobileLabsController],
-  providers: [MobileLabsService],
-})
+import { FileManagerService }   from '@services/file-manager.service';
+import { MobileLabsController } from './mobile-labs.controller';
+import { MobileLabsService }    from './mobile-labs.service';
+
+
+@Module( {
+	controllers : [ MobileLabsController ],
+	providers   : [ MobileLabsService, FileManagerService ],
+} )
 export class MobileLabsModule {}
