@@ -27,8 +27,11 @@
             "@products/*"       : ["./src/products/*"],
             "@categories/*"     : ["./src/categories/*"],
             "@sub-categories/*"  : ["./src/sub-categories/*"],
+            "@materials/*"      : ["./src/materials/*"],
             "@kits/*"           : ["./src/kits/*"],
             "@mobile-labs/*"    : ["./src/mobile-labs/*"],
+            "@kit-categories/*" : ["./src/kit-categories/*"],
+            "@lab-categories/*" : ["./src/lab-categories/*"],
             "@app/*"            : ["./src/*"],
         }
     }
