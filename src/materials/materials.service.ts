@@ -71,9 +71,17 @@ export class MaterialsService {
 	}
 
 
-	async findAll( ): Promise<Material[]> {
+	async findAll( ): Promise<any[]> {
 		try {
 			return await this.prisma.material.findMany({
+                select : {
+                    id                  : true,
+                    name                : true,
+                    slug                : true,
+                    autoclavable        : true,
+                    maxTemperature      : true,
+                    chemicalResistance  : true,
+                },
 				orderBy	: {
 					name	: 'asc',
 				},
@@ -84,7 +92,9 @@ export class MaterialsService {
 	}
 
 
-	async findAllPaginated( filterDto: MaterialPaginationFilterDto ): Promise<PaginatedResult<Material>> {
+	async findAllPaginated(
+        filterDto: MaterialPaginationFilterDto
+    ): Promise<PaginatedResult<Material>> {
 		try {
 			const {
 				page = 1,
