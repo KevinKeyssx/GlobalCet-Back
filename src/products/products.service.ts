@@ -1,11 +1,17 @@
 import { ConflictException, Injectable, BadRequestException } from '@nestjs/common';
 
+import { ulid } from 'ulid';
+
 import {
     getFileNameWithExtension,
     mapResourceTypeToAttachmentType
 }                                       from '@common/utils/file.utils';
-import { ENVS }                         from '@config/envs';
+import {
+    FileManagerService,
+    ResponeFileUpload
+}                                       from '@services/file-manager.service';
 import { PaginatedResult }              from '@common/interfaces/paginated-result.interface';
+import { ENVS }                         from '@config/envs';
 import { Prisma, Product }              from '@prisma/client';
 import { PrismaException }              from '@prisma/prisma-catch';
 import { PrismaService }                from '@prisma/prisma.service';
@@ -16,8 +22,6 @@ import { IProduct }                     from '@products/models/product.interface
 import { UpdateProductImagesDto }       from '@products/dto/update-product-images.dto';
 import { UploadProductImagesDto }       from '@products/dto/upload-product-images.dto';
 import { DeleteProductImagesDto }       from '@products/dto/delete-product-images.dto';
-import { FileManagerService }           from '@services/file-manager.service';
-import { ulid }                         from 'ulid';
 
 
 @Injectable()
@@ -105,7 +109,8 @@ export class ProductsService {
         } = createProductDto;
 
         const productId = ulid();
-        let uploadedImages: Array<{ secure_url : string; public_id : string; resource_type : string }> = [];
+
+        let uploadedImages: Array<ResponeFileUpload> = [];
 
         try {
             const skuExists = await this.prisma.product.findUnique({
@@ -138,18 +143,20 @@ export class ProductsService {
 
                 if ( isVisual ) {
                     isMain = info?.isMain ?? ( !hasMainAssigned && visualIndex === 0 );
+
                     if ( isMain ) {
                         hasMainAssigned = true;
                     }
+
                     order = info?.order ?? visualIndex;
                     visualIndex++;
                 }
 
                 return {
-                    url             : getFileNameWithExtension( item.secure_url ),
-                    alt             : info?.alt || null,
                     isMain,
                     order,
+                    alt             : info?.alt || null,
+                    url             : getFileNameWithExtension( item.secure_url ),
                     attachmentType  : type,
                 };
             });
@@ -185,9 +192,7 @@ export class ProductsService {
 			const {
 				page = 1,
 				size = 10,
-				// name,
-				// sku,
-				material,
+				materials,
 				active,
 				subcategories,
 				includeImages,
@@ -198,11 +203,9 @@ export class ProductsService {
 			const skip = ( page - 1 ) * size;
 
 			const where: Prisma.ProductWhereInput = {
-				// ...( name && { name: { contains: name, mode: 'insensitive' } } ),
-				// ...( sku && { sku: { contains: sku, mode: 'insensitive' } } ),
-				...( material && { material : { name : { contains : material, mode : 'insensitive' } } } ),
+				...( materials && materials.length > 0 && { materialId : { in : materials } } ),
 				...( active !== undefined && { active } ),
-				...( subcategories && subcategories.length > 0 && { subcategoryId: { in: subcategories } } ),
+				...( subcategories && subcategories.length > 0 && { subcategoryId : { in : subcategories } } ),
 			};
 
 			const [ total, data ] = await Promise.all([
