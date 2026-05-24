@@ -6,6 +6,7 @@ interface EnvVars {
     PORT            : number;
     DATABASE_URL    : string;
     ALLOWED_ORIGINS : string;
+    X_SECRET        : string;
 
     FILE_UPLOAD_LIMIT           : number;
     FILE_MANAGER_URL            : string;
@@ -24,6 +25,7 @@ const envsSchema = joi.object({
     PORT            : joi.number().required(),
     DATABASE_URL    : joi.string().required(),
     ALLOWED_ORIGINS : joi.string().required(),
+    X_SECRET        : joi.string().required(),
 
     FILE_UPLOAD_LIMIT                       : joi.number().default( 5 ),
     FILE_MANAGER_URL                        : joi.string().required(),
@@ -49,10 +51,11 @@ const envVars: EnvVars = value;
 
 
 export const ENVS = {
-    PORT            : envVars.PORT,
-    DATABASE_URL    : envVars.DATABASE_URL,
-    ALLOWED_ORIGINS : envVars.ALLOWED_ORIGINS.split( ',' ),
+    PORT              : envVars.PORT,
+    DATABASE_URL      : envVars.DATABASE_URL,
+    ALLOWED_ORIGINS   : envVars.ALLOWED_ORIGINS.split( ',' ),
     FILE_UPLOAD_LIMIT : envVars.FILE_UPLOAD_LIMIT,
+    X_SECRET          : envVars.X_SECRET,
 
     FILE_MANAGER : {
         URL                         : envVars.FILE_MANAGER_URL,
