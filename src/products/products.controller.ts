@@ -9,13 +9,15 @@ import {
 	Query,
     UseInterceptors,
     BadRequestException,
-    UploadedFiles
+    UploadedFiles,
+    UseGuards
 }                               from '@nestjs/common';
-import { ApiBody, ApiConsumes } from '@nestjs/swagger';
+import { ApiBody, ApiConsumes, ApiHeader } from '@nestjs/swagger';
 import { FilesInterceptor }     from '@nestjs/platform-express';
 
-import { Product } from '@prisma/client';
+import { Product }              from '@prisma/client';
 
+import { SecretGuard }          from '@common/guards/secret.guard';
 import { PaginatedResult }              from '@common/interfaces/paginated-result.interface';
 import { ProductsService }              from '@products/products.service';
 import { CreateProductDto }             from '@products/dto/create-product.dto';
@@ -28,7 +30,13 @@ import { UpdateProductImagesDto }       from '@products/dto/update-product-image
 import { DeleteProductImagesDto }       from '@products/dto/delete-product-images.dto';
 
 
+@UseGuards( SecretGuard )
 @Controller( 'products' )
+@ApiHeader({
+    name : 'x-secret',
+    description : 'Secret key to authenticate requests',
+    required : true
+})
 export class ProductsController {
 
 	constructor(

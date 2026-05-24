@@ -1,16 +1,40 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import {
+    Controller,
+    Get,
+    Post,
+    Body,
+    Patch,
+    Param,
+    Delete,
+    Query,
+    UseGuards
+}               from '@nestjs/common';
+import {
+    ApiTags,
+    ApiOperation,
+    ApiResponse,
+    ApiParam,
+    ApiHeader
+}               from '@nestjs/swagger';
 
-import { KitCategory }              from '@prisma/client';
+import { KitCategory } from '@prisma/client';
+
+import { SecretGuard }                  from '@common/guards/secret.guard';
 import { PaginatedResult }              from '@common/interfaces/paginated-result.interface';
 import { CategoryPaginationFilterDto }  from '@common/dto/category-pagination-filter.dto';
-import { KitCategoriesService }     from './kit-categories.service';
-import { CreateKitCategoryDto }     from './dto/create-kit-category.dto';
-import { UpdateKitCategoryDto }     from './dto/update-kit-category.dto';
+import { KitCategoriesService }         from '@kit-categories/kit-categories.service';
+import { CreateKitCategoryDto }         from '@kit-categories/dto/create-kit-category.dto';
+import { UpdateKitCategoryDto }         from '@kit-categories/dto/update-kit-category.dto';
 
 
 @ApiTags( 'Kit Categories' )
+@UseGuards( SecretGuard )
 @Controller( 'kit-categories' )
+@ApiHeader({
+    name : 'x-secret',
+    description : 'Secret key to authenticate requests',
+    required : true
+})
 export class KitCategoriesController {
 
 	constructor(

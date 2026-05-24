@@ -10,6 +10,7 @@ import {
 	UseInterceptors,
 	BadRequestException,
 	UploadedFiles,
+	UseGuards,
 }                           from '@nestjs/common';
 import {
     ApiBody,
@@ -17,11 +18,13 @@ import {
     ApiTags,
     ApiOperation,
     ApiResponse,
-    ApiParam
+    ApiParam,
+    ApiHeader
 }                           from '@nestjs/swagger';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { Kit }              from '@prisma/client';
 
+import { SecretGuard }                  from '@common/guards/secret.guard';
 import { ENVS }                         from '@config/envs';
 import { PaginatedResult }              from '@common/interfaces/paginated-result.interface';
 import { IKit, IKitProduct }            from '@kits/models/kit.interface';
@@ -38,7 +41,13 @@ import { DeleteKitProductsDto }         from '@kits/dto/delete-kit-products.dto'
 
 
 @ApiTags( 'Kits' )
+@UseGuards( SecretGuard )
 @Controller( 'kits' )
+@ApiHeader({
+    name : 'x-secret',
+    description : 'Secret key to authenticate requests',
+    required : true
+})
 export class KitsController {
 
 	constructor(

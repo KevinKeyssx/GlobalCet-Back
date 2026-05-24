@@ -5,10 +5,12 @@ import {
     Body,
     Patch,
     Param,
-    Delete
+    Delete,
+    UseGuards
 } from '@nestjs/common';
-import { ApiTags, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiBody, ApiHeader } from '@nestjs/swagger';
 
+import { SecretGuard }          from '@common/guards/secret.guard';
 import { SubCategoriesService } from './sub-categories.service';
 import { CreateSubCategoryDto } from './dto/create-sub-category.dto';
 import { UpdateSubCategoryDto } from './dto/update-sub-category.dto';
@@ -16,7 +18,13 @@ import { Subcategory }          from '@prisma/client';
 
 
 @ApiTags( 'Sub-Categories' )
+@UseGuards( SecretGuard )
 @Controller( 'sub-categories' )
+@ApiHeader({
+    name : 'x-secret',
+    description : 'Secret key to authenticate requests',
+    required : true
+})
 export class SubCategoriesController {
 
     constructor(

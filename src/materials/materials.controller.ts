@@ -6,11 +6,13 @@ import {
 	Patch,
 	Param,
 	Delete,
-	Query
+	Query,
+	UseGuards
 }                           from '@nestjs/common';
-import { ApiTags, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiBody, ApiHeader } from '@nestjs/swagger';
 import { Material }         from '@prisma/client';
 
+import { SecretGuard }                  from '@common/guards/secret.guard';
 import { MaterialsService }             from './materials.service';
 import { CreateMaterialDto }            from './dto/create-material.dto';
 import { UpdateMaterialDto }            from './dto/update-material.dto';
@@ -19,7 +21,13 @@ import { PaginatedResult }              from '@common/interfaces/paginated-resul
 
 
 @ApiTags( 'Materials' )
+@UseGuards( SecretGuard )
 @Controller( 'materials' )
+@ApiHeader({
+    name : 'x-secret',
+    description : 'Secret key to authenticate requests',
+    required : true
+})
 export class MaterialsController {
 
 	constructor(

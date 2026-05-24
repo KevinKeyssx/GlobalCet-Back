@@ -1,16 +1,40 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import {
+	Controller,
+	Get,
+	Post,
+	Body,
+	Patch,
+	Param,
+	Delete,
+	Query,
+	UseGuards,
+}               from '@nestjs/common';
+import {
+	ApiTags,
+	ApiOperation,
+	ApiResponse,
+	ApiParam,
+	ApiHeader,
+}               from '@nestjs/swagger';
 
-import { LabCategory }              from '@prisma/client';
+import { LabCategory } from '@prisma/client';
+
+import { SecretGuard }                  from '@common/guards/secret.guard';
 import { PaginatedResult }              from '@common/interfaces/paginated-result.interface';
 import { CategoryPaginationFilterDto }  from '@common/dto/category-pagination-filter.dto';
-import { LabCategoriesService }     from './lab-categories.service';
-import { CreateLabCategoryDto }     from './dto/create-lab-category.dto';
-import { UpdateLabCategoryDto }     from './dto/update-lab-category.dto';
+import { LabCategoriesService }         from '@lab-categories/lab-categories.service';
+import { CreateLabCategoryDto }         from '@lab-categories/dto/create-lab-category.dto';
+import { UpdateLabCategoryDto }         from '@lab-categories/dto/update-lab-category.dto';
 
 
 @ApiTags( 'Lab Categories' )
+@UseGuards( SecretGuard )
 @Controller( 'lab-categories' )
+@ApiHeader({
+    name : 'x-secret',
+    description : 'Secret key to authenticate requests',
+    required : true
+})
 export class LabCategoriesController {
 
 	constructor(

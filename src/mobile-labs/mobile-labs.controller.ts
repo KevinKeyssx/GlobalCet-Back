@@ -10,6 +10,7 @@ import {
 	UseInterceptors,
 	BadRequestException,
 	UploadedFiles,
+	UseGuards,
 }                           from '@nestjs/common';
 import {
 	ApiBody,
@@ -18,33 +19,40 @@ import {
 	ApiOperation,
 	ApiResponse,
 	ApiParam,
+	ApiHeader,
 }                           from '@nestjs/swagger';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { MobileLab }        from '@prisma/client';
 
-import { ENVS }                         from '@config/envs';
-import { PaginatedResult }              from '@common/interfaces/paginated-result.interface';
 import {
-	IMobileLab,
+    IMobileLab,
 	IMobileLabProduct,
 	IMobileLabKit,
-}                                       from './models/mobile-lab.interface';
-import { MobileLabsService }            from './mobile-labs.service';
-import { CreateMobileLabDto }           from './dto/create-mobile-lab.dto';
-import { UpdateMobileLabDto }           from './dto/update-mobile-lab.dto';
-import { MobileLabPaginationFilterDto } from './dto/pagination-filter.dto';
-import { UploadMobileLabFilesDto }      from './dto/upload-mobile-lab-files.dto';
-import { UpdateMobileLabFilesDto }      from './dto/update-mobile-lab-files.dto';
-import { DeleteMobileLabFilesDto }      from './dto/delete-mobile-lab-files.dto';
-import { AddMobileLabProductsDto }      from './dto/add-mobile-lab-products.dto';
-import { UpdateMobileLabProductRelationDto } from './dto/mobile-lab-product.dto';
-import { AddMobileLabKitsDto }          from './dto/add-mobile-lab-kits.dto';
-import { UpdateMobileLabKitRelationDto }     from './dto/mobile-lab-kit.dto';
-import { DeleteMobileLabRelationsDto }  from './dto/delete-mobile-lab-relations.dto';
+}                                               from '@mobile-labs/models/mobile-lab.interface';
+import { PaginatedResult }                      from '@common/interfaces/paginated-result.interface';
+import { SecretGuard }                          from '@common/guards/secret.guard';
+import { ENVS }                                 from '@config/envs';
+import { MobileLabsService }                    from '@mobile-labs/mobile-labs.service';
+import { CreateMobileLabDto }                   from '@mobile-labs/dto/create-mobile-lab.dto';
+import { UpdateMobileLabDto }                   from '@mobile-labs/dto/update-mobile-lab.dto';
+import { MobileLabPaginationFilterDto }         from '@mobile-labs/dto/pagination-filter.dto';
+import { UploadMobileLabFilesDto }              from '@mobile-labs/dto/upload-mobile-lab-files.dto';
+import { UpdateMobileLabFilesDto }              from '@mobile-labs/dto/update-mobile-lab-files.dto';
+import { DeleteMobileLabFilesDto }              from '@mobile-labs/dto/delete-mobile-lab-files.dto';
+import { AddMobileLabProductsDto }              from '@mobile-labs/dto/add-mobile-lab-products.dto';
+import { UpdateMobileLabProductRelationDto }    from '@mobile-labs/dto/mobile-lab-product.dto';
+import { AddMobileLabKitsDto }                  from '@mobile-labs/dto/add-mobile-lab-kits.dto';
+import { UpdateMobileLabKitRelationDto }        from '@mobile-labs/dto/mobile-lab-kit.dto';
+import { DeleteMobileLabRelationsDto }          from '@mobile-labs/dto/delete-mobile-lab-relations.dto';
 
 
 @ApiTags( 'Laboratorios Móviles' )
+@UseGuards( SecretGuard )
 @Controller( 'mobile-labs' )
+@ApiHeader({
+    name : 'x-secret',
+    description : 'Secret key to authenticate requests',
+    required : true
+})
 export class MobileLabsController {
 
 	constructor(
