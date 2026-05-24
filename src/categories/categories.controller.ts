@@ -7,19 +7,33 @@ import {
     Param,
     Delete,
     Query,
-    ParseBoolPipe
-}                           from '@nestjs/common';
-import { ApiTags, ApiBody } from '@nestjs/swagger';
+    ParseBoolPipe,
+    UseGuards
+}               from '@nestjs/common';
+import {
+    ApiTags,
+    ApiBody,
+    ApiHeader
+}               from '@nestjs/swagger';
 
-import { Category } from '@prisma/client';
+import { Category }         from '@prisma/client';
 
-import { CategoriesService } from '@categories/categories.service';
-import { CreateCategoryDto } from '@categories/dto/create-category.dto';
-import { UpdateCategoryDto } from '@categories/dto/update-category.dto';
+import { SecretGuard }                  from '@common/guards/secret.guard';
+import { CategoriesService }            from '@categories/categories.service';
+import { CreateCategoryDto }            from '@categories/dto/create-category.dto';
+import { UpdateCategoryDto }            from '@categories/dto/update-category.dto';
+import { CategoryPaginationFilterDto }  from '@categories/dto/pagination-filter.dto';
+import { PaginatedResult }              from '@common/interfaces/paginated-result.interface';
 
 
 @ApiTags( 'Categories' )
+@UseGuards( SecretGuard )
 @Controller( 'categories' )
+@ApiHeader({
+    name : 'x-secret',
+    description : 'Secret key to authenticate requests',
+    required : true
+})
 export class CategoriesController {
 
     constructor(
@@ -39,8 +53,16 @@ export class CategoriesController {
     @Get()
     findAll(
         @Query( 'includeSubcategories', new ParseBoolPipe( { optional : true } ) ) includeSubcategories: boolean = false
-    ): Promise<Category[]> {
+    ): Promise<any[]> {
         return this.categoriesService.findAll( includeSubcategories );
+    }
+
+
+    @Get( 'paginated' )
+    findAllPaginated(
+        @Query() filterDto: CategoryPaginationFilterDto
+    ): Promise<PaginatedResult<Category>> {
+        return this.categoriesService.findAllPaginated( filterDto );
     }
 
 
