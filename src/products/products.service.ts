@@ -22,6 +22,7 @@ import { IProduct }                     from '@products/models/product.interface
 import { UpdateProductImagesDto }       from '@products/dto/update-product-images.dto';
 import { UploadProductImagesDto }       from '@products/dto/upload-product-images.dto';
 import { DeleteProductImagesDto }       from '@products/dto/delete-product-images.dto';
+import { IncludesItemsDto }             from '@products/dto/includes-items.dto';
 
 
 @Injectable()
@@ -126,7 +127,7 @@ export class ProductsService {
                 const validFiles = files;
 
                 if ( validFiles.length > 0 ) {
-                    uploadedImages = await this.fileManagerService.uploadMultiple( validFiles, productId );
+                    uploadedImages = await this.fileManagerService.uploadMultiple( validFiles, 'products', productId );
                 }
             }
 
@@ -276,9 +277,9 @@ export class ProductsService {
 	}
 
 
-	async findOne( id: string, filterDto: ProductPaginationFilterDto ): Promise<IProduct> {
+	async findOne( id: string, includesItemsDto: IncludesItemsDto ): Promise<IProduct> {
 		try {
-			const { includeImages, includeKits, includeMobileLabs } = filterDto;
+			const { includeImages, includeKits, includeMobileLabs } = includesItemsDto;
 
 			return await this.prisma.product.findUniqueOrThrow({
 				where  : { id },
@@ -395,7 +396,7 @@ export class ProductsService {
 
             const validFiles = files;
 
-            const uploadedImages = await this.fileManagerService.uploadMultiple( validFiles, productId );
+            const uploadedImages = await this.fileManagerService.uploadMultiple( validFiles, 'products', productId );
 
             const maxOrder = currentImages.reduce( ( max, img ) => ( img.order !== null && img.order > max ) ? img.order : max, -1 );
             let nextOrder  = maxOrder + 1;
