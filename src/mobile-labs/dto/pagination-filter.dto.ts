@@ -1,10 +1,19 @@
-import { ApiPropertyOptional }                 from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 
-import { IsArray, IsBoolean, IsInt, IsOptional, IsString, Min } from 'class-validator';
-import { Transform, Type }                     from 'class-transformer';
+import {
+    IsArray,
+    IsBoolean,
+    IsInt,
+    IsOptional,
+    IsString,
+    Min
+}                           from 'class-validator';
+import { Transform, Type }  from 'class-transformer';
+
+import { IncludesMobileLabDto } from '@mobile-labs/dto/includes.dto';
 
 
-export class MobileLabPaginationFilterDto {
+export class MobileLabPaginationFilterDto extends IncludesMobileLabDto {
 
 	@ApiPropertyOptional( {
 		description : 'Número de página para la paginación',
@@ -64,34 +73,5 @@ export class MobileLabPaginationFilterDto {
 	@IsString( { each : true } )
 	categories?: string[];
 
-	@ApiPropertyOptional( {
-		description : 'Incluir todos los archivos adjuntos en el resultado',
-		example     : false,
-		default     : false,
-	} )
-	@IsOptional()
-	@IsBoolean()
-	@Transform( ( { value } ) => value === 'true' || value === true )
-	includeFiles?: boolean = false;
-
-	@ApiPropertyOptional( {
-		description : 'Incluir la relación de productos en el resultado',
-		example     : false,
-		default     : false,
-	} )
-	@IsOptional()
-	@IsBoolean()
-	@Transform( ( { value } ) => value === 'true' || value === true )
-	includeProducts?: boolean = false;
-
-	@ApiPropertyOptional( {
-		description : 'Incluir la relación de kits en el resultado',
-		example     : false,
-		default     : false,
-	} )
-	@IsOptional()
-	@IsBoolean()
-	@Transform( ( { value } ) => value === 'true' || value === true )
-	includeKits?: boolean = false;
-
+	
 }
