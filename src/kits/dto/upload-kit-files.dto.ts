@@ -1,8 +1,8 @@
-import { ApiPropertyOptional }                 from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 
-import { IsArray, IsOptional, ValidateNested } from 'class-validator';
-import { Transform, Type }                     from 'class-transformer';
-import { KitFileConfigDto }                    from './kit-file-config.dto';
+import { IsArray, IsOptional, ValidateNested }  from 'class-validator';
+import { Transform, Type, plainToInstance }     from 'class-transformer';
+import { KitFileConfigDto }                     from '@kits/dto/kit-file-config.dto';
 
 
 export class UploadKitFilesDto {
@@ -13,7 +13,17 @@ export class UploadKitFilesDto {
 		example     : '[{"alt":"Vista frontal","isMain":true,"order":0}]',
 	} )
 	@IsOptional()
-	@Transform( ( { value } ) => ( typeof value === 'string' ? JSON.parse( value ) : value ) )
+	@Transform( ( { value } ) => {
+		if ( typeof value === 'string' ) {
+			try {
+				const parsed = JSON.parse( value );
+				return plainToInstance( KitFileConfigDto, parsed );
+			} catch ( error ) {
+				return [];
+			}
+		}
+		return plainToInstance( KitFileConfigDto, value );
+	} )
 	@IsArray()
 	@ValidateNested( { each : true } )
 	@Type( () => KitFileConfigDto )
