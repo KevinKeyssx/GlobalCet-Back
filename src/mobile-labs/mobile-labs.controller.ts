@@ -43,6 +43,7 @@ import { UpdateMobileLabProductRelationDto }    from '@mobile-labs/dto/mobile-la
 import { AddMobileLabKitsDto }                  from '@mobile-labs/dto/add-mobile-lab-kits.dto';
 import { UpdateMobileLabKitRelationDto }        from '@mobile-labs/dto/mobile-lab-kit.dto';
 import { DeleteMobileLabRelationsDto }          from '@mobile-labs/dto/delete-mobile-lab-relations.dto';
+import { IncludesMobileLabDto }                 from '@mobile-labs/dto/includes.dto';
 
 
 @ApiTags( 'Laboratorios Móviles' )
@@ -97,9 +98,9 @@ export class MobileLabsController {
 	@ApiResponse( { status : 404, description : 'Laboratorio móvil no encontrado.' } )
 	findOne(
 		@Param( 'id' ) id : string,
-		@Query() filterDto : MobileLabPaginationFilterDto,
+		@Query() includesLabDto : IncludesMobileLabDto,
 	) : Promise<IMobileLab> {
-		return this.mobileLabsService.findOne( id, filterDto );
+		return this.mobileLabsService.findOne( id, includesLabDto );
 	}
 
 
