@@ -1,4 +1,4 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional, IntersectionType } from '@nestjs/swagger';
 
 import {
 	IsOptional,
@@ -7,10 +7,15 @@ import {
 	IsArray,
 }                       from 'class-validator';
 import { Transform }    from 'class-transformer';
-import { PaginationDto } from '@common/dto/pagination.dto';
+
+import { PaginationDto }    from '@common/dto/pagination.dto';
+import { IncludesKitDto }   from '@kits/dto/includes.dto';
 
 
-export class KitPaginationFilterDto extends PaginationDto {
+export class KitPaginationFilterDto extends IntersectionType(
+    PaginationDto,
+    IncludesKitDto
+) {
 
 	@ApiPropertyOptional( {
 		description : 'Filtrar por nombre parcial del kit',
@@ -20,7 +25,7 @@ export class KitPaginationFilterDto extends PaginationDto {
 	@IsString()
 	name?: string;
 
-	@ApiPropertyOptional( {
+	@ApiPropertyOptional({
 		description : 'Filtrar por SKU parcial del kit',
 		example     : 'KIT-BIO-001',
 	} )
@@ -28,44 +33,24 @@ export class KitPaginationFilterDto extends PaginationDto {
 	@IsString()
 	sku?: string;
 
-	@ApiPropertyOptional( {
+	@ApiPropertyOptional({
 		description : 'Filtrar por estado activo/inactivo',
 		example     : true,
 	} )
 	@IsOptional()
 	@IsBoolean()
-	@Transform( ( { value } ) => value === 'true' || value === true )
+	@Transform(({ value }) => value === 'true' || value === true )
 	active?: boolean;
 
-	@ApiPropertyOptional( {
+	@ApiPropertyOptional({
 		description : 'Filtrar por IDs de categorías de kits (ULID)',
 		type        : [ String ],
 		example     : [ '01ARZ3NDEKTSV4RRFFQ6KHNQZS' ],
 	} )
 	@IsOptional()
 	@IsArray()
-	@IsString( { each : true } )
-	@Transform( ( { value } ) => ( Array.isArray( value ) ? value : [ value ] ) )
+	@IsString({ each : true })
+	@Transform(({ value }) => ( Array.isArray( value ) ? value : [ value ]))
 	categories?: string[];
-
-	@ApiPropertyOptional( {
-		description : 'Incluir archivos asociados al kit',
-		example     : false,
-		default     : false,
-	} )
-	@IsOptional()
-	@IsBoolean()
-	@Transform( ( { value } ) => value === 'true' || value === true )
-	includeFiles?: boolean = false;
-
-	@ApiPropertyOptional( {
-		description : 'Incluir productos asociados al kit',
-		example     : false,
-		default     : false,
-	} )
-	@IsOptional()
-	@IsBoolean()
-	@Transform( ( { value } ) => value === 'true' || value === true )
-	includeProducts?: boolean = false;
 
 }
