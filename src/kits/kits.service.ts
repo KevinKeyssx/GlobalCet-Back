@@ -6,12 +6,15 @@ import {
     getFileNameWithExtension,
     mapResourceTypeToAttachmentType
 }                                   from '@common/utils/file.utils';
+import {
+    FileManagerService,
+    ResponeFileUpload
+}                                   from '@services/file-manager.service';
 import { PaginatedResult }          from '@common/interfaces/paginated-result.interface';
 import { PrismaException }          from '@prisma/prisma-catch';
 import { PrismaService }            from '@prisma/prisma.service';
 import { Kit, Prisma }              from '@prisma/client';
 import { ENVS }                     from '@config/envs';
-import { FileManagerService }       from '@services/file-manager.service';
 import { IKit, IKitProduct }        from '@kits/models/kit.interface';
 import { CreateKitDto }             from '@kits/dto/create-kit.dto';
 import { UpdateKitDto }             from '@kits/dto/update-kit.dto';
@@ -21,6 +24,7 @@ import { DeleteKitFilesDto }        from '@kits/dto/delete-kit-files.dto';
 import { KitProductDto }            from '@kits/dto/kit-product.dto';
 import { DeleteKitProductsDto }     from '@kits/dto/delete-kit-products.dto';
 import { KitPaginationFilterDto }   from '@kits/dto/pagination-filter.dto';
+import { IncludesKitDto }           from '@kits/dto/includes.dto';
 
 
 @Injectable()
@@ -114,14 +118,14 @@ export class KitsService {
 			// Validar existencia de categoría
 			await this.prisma.kitCategory.findUniqueOrThrow( {
 				where : { id : categoryId },
-			} );
+			});
 
 			const kitId = ulid();
 
-			let uploadedFiles: Array<{ secure_url: string; public_id: string; resource_type: string }> = [];
+			let uploadedFiles: Array<ResponeFileUpload> = [];
 
 			if ( files && files.length > 0 ) {
-				const response = await this.fileManagerService.uploadMultiple( files, kitId );
+				const response = await this.fileManagerService.uploadMultiple( files, 'kits', kitId );
 				uploadedFiles = response;
 			}
 
@@ -234,10 +238,10 @@ export class KitsService {
 	}
 
 
-	async findOne( id: string, filterDto?: KitPaginationFilterDto ): Promise<IKit> {
+	async findOne( id: string, includesKitDto?: IncludesKitDto ): Promise<IKit> {
 		try {
-			const includeFiles    = filterDto?.includeFiles ?? true;
-			const includeProducts = filterDto?.includeProducts ?? true;
+			const includeFiles    = includesKitDto?.includeFiles ?? true;
+			const includeProducts = includesKitDto?.includeProducts ?? true;
 
 			return await this.prisma.kit.findUniqueOrThrow( {
 				where  : { id },
@@ -362,7 +366,7 @@ export class KitsService {
 				throw new BadRequestException( 'No se proporcionaron archivos para subir' );
 			}
 
-			const uploadedFiles = await this.fileManagerService.uploadMultiple( files, kitId );
+			const uploadedFiles = await this.fileManagerService.uploadMultiple( files, 'kits', kitId );
 
 			const maxOrder = currentFiles.reduce( ( max, img ) => ( img.order !== null && img.order > max ) ? img.order : max, -1 );
 			let nextOrder  = maxOrder + 1;
