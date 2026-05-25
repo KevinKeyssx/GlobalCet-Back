@@ -1,8 +1,9 @@
-import { ApiPropertyOptional }                 from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 
-import { IsArray, IsOptional, ValidateNested } from 'class-validator';
-import { Transform, Type }                     from 'class-transformer';
-import { MobileLabFileConfigDto }              from './mobile-lab-file-config.dto';
+import { IsArray, IsOptional, ValidateNested }  from 'class-validator';
+import { Transform, Type, plainToInstance }     from 'class-transformer';
+
+import { MobileLabFileConfigDto } from '@mobile-labs/dto/mobile-lab-file-config.dto';
 
 
 export class UploadMobileLabFilesDto {
@@ -13,7 +14,17 @@ export class UploadMobileLabFilesDto {
 		example     : '[{"alt":"Detalle interior","isMain":false,"order":1}]',
 	} )
 	@IsOptional()
-	@Transform( ( { value } ) => ( typeof value === 'string' ? JSON.parse( value ) : value ) )
+	@Transform( ( { value } ) => {
+		if ( typeof value === 'string' ) {
+			try {
+				const parsed = JSON.parse( value );
+				return plainToInstance( MobileLabFileConfigDto, parsed );
+			} catch ( error ) {
+				return [];
+			}
+		}
+		return plainToInstance( MobileLabFileConfigDto, value );
+	} )
 	@IsArray()
 	@ValidateNested( { each : true } )
 	@Type( () => MobileLabFileConfigDto )
