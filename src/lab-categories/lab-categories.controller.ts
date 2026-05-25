@@ -55,7 +55,7 @@ export class LabCategoriesController {
 	@Get()
 	@ApiOperation( { summary : 'Obtener todas las categorías de laboratorios ordenadas alfabéticamente' } )
 	@ApiResponse( { status : 200, description : 'Listado obtenido exitosamente.' } )
-	findAll(): Promise<LabCategory[]> {
+	findAll(): Promise<{ id: string, name: string }[]> {
 		return this.labCategoriesService.findAll();
 	}
 
