@@ -36,11 +36,18 @@ export class KitCategoriesService {
 	}
 
 
-	async findAll(): Promise<KitCategory[]> {
+	async findAll(): Promise<{ id: string, name: string }[]> {
 		try {
 			return await this.prisma.kitCategory.findMany( {
+                select : {
+                    id: true,
+                    name: true
+                },
+                where: {
+                    active: true
+                },
 				orderBy : { name : 'asc' },
-			} );
+			});
 		} catch ( error ) {
 			throw PrismaException.catch( error );
 		}
