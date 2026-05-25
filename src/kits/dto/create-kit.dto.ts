@@ -9,12 +9,16 @@ import {
 	ValidateNested,
 	IsBoolean,
 }                       from 'class-validator';
-import { Transform, Type } from 'class-transformer';
+import {
+    Transform,
+    Type,
+    plainToInstance
+}                       from 'class-transformer';
 
 import { NameDto }          from '@common/dto/name.dto';
 import { UploadFilesDto }   from '@common/dto/upload-files.dto';
-import { KitFileConfigDto } from './kit-file-config.dto';
-import { KitProductDto }    from './kit-product.dto';
+import { KitFileConfigDto } from '@kits/dto/kit-file-config.dto';
+import { KitProductDto }    from '@kits/dto/kit-product.dto';
 
 
 export class CreateKitDto extends IntersectionType(
@@ -64,7 +68,17 @@ export class CreateKitDto extends IntersectionType(
 		example     : '[{"alt":"Vista frontal","isMain":true,"order":0}]',
 	} )
 	@IsOptional()
-	@Transform( ( { value } ) => ( typeof value === 'string' ? JSON.parse( value ) : value ) )
+	@Transform( ( { value } ) => {
+		if ( typeof value === 'string' ) {
+			try {
+				const parsed = JSON.parse( value );
+				return plainToInstance( KitFileConfigDto, parsed );
+			} catch ( error ) {
+				return [];
+			}
+		}
+		return plainToInstance( KitFileConfigDto, value );
+	} )
 	@IsArray()
 	@ValidateNested( { each : true } )
 	@Type( () => KitFileConfigDto )
@@ -76,7 +90,17 @@ export class CreateKitDto extends IntersectionType(
 		example     : '[{"productId":"01ARZ3NDEKTSV4RRFFQ6KHNQZS","quantity":2}]',
 	} )
 	@IsOptional()
-	@Transform( ( { value } ) => ( typeof value === 'string' ? JSON.parse( value ) : value ) )
+	@Transform( ( { value } ) => {
+		if ( typeof value === 'string' ) {
+			try {
+				const parsed = JSON.parse( value );
+				return plainToInstance( KitProductDto, parsed );
+			} catch ( error ) {
+				return [];
+			}
+		}
+		return plainToInstance( KitProductDto, value );
+	} )
 	@IsArray()
 	@ValidateNested( { each : true } )
 	@Type( () => KitProductDto )
