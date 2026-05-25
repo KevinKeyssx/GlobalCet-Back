@@ -9,13 +9,17 @@ import {
 	ValidateNested,
 	IsBoolean,
 }                       from 'class-validator';
-import { Transform, Type } from 'class-transformer';
+import {
+    Transform,
+    Type,
+    plainToInstance
+}                       from 'class-transformer';
 
-import { NameDto }          from '@common/dto/name.dto';
-import { UploadFilesDto }   from '@common/dto/upload-files.dto';
-import { MobileLabFileConfigDto } from './mobile-lab-file-config.dto';
-import { MobileLabProductDto }    from './mobile-lab-product.dto';
-import { MobileLabKitDto }        from './mobile-lab-kit.dto';
+import { NameDto }                  from '@common/dto/name.dto';
+import { UploadFilesDto }           from '@common/dto/upload-files.dto';
+import { MobileLabFileConfigDto }   from '@mobile-labs/dto/mobile-lab-file-config.dto';
+import { MobileLabProductDto }      from '@mobile-labs/dto/mobile-lab-product.dto';
+import { MobileLabKitDto }          from './mobile-lab-kit.dto';
 
 
 export class CreateMobileLabDto extends IntersectionType(
@@ -73,7 +77,17 @@ export class CreateMobileLabDto extends IntersectionType(
 		example     : '[{"alt":"Vista frontal","isMain":true,"order":0}]',
 	} )
 	@IsOptional()
-	@Transform( ( { value } ) => ( typeof value === 'string' ? JSON.parse( value ) : value ) )
+	@Transform( ( { value } ) => {
+		if ( typeof value === 'string' ) {
+			try {
+				const parsed = JSON.parse( value );
+				return plainToInstance( MobileLabFileConfigDto, parsed );
+			} catch ( error ) {
+				return [];
+			}
+		}
+		return plainToInstance( MobileLabFileConfigDto, value );
+	} )
 	@IsArray()
 	@ValidateNested( { each : true } )
 	@Type( () => MobileLabFileConfigDto )
@@ -85,7 +99,17 @@ export class CreateMobileLabDto extends IntersectionType(
 		example     : '[{"productId":"01ARZ3NDEKTSV4RRFFQ6KHNQZS","quantity":2}]',
 	} )
 	@IsOptional()
-	@Transform( ( { value } ) => ( typeof value === 'string' ? JSON.parse( value ) : value ) )
+	@Transform( ( { value } ) => {
+		if ( typeof value === 'string' ) {
+			try {
+				const parsed = JSON.parse( value );
+				return plainToInstance( MobileLabProductDto, parsed );
+			} catch ( error ) {
+				return [];
+			}
+		}
+		return plainToInstance( MobileLabProductDto, value );
+	} )
 	@IsArray()
 	@ValidateNested( { each : true } )
 	@Type( () => MobileLabProductDto )
@@ -97,7 +121,17 @@ export class CreateMobileLabDto extends IntersectionType(
 		example     : '[{"kitId":"01ARZ3NDEKTSV4RRFFQ6KHNQZS","quantity":1}]',
 	} )
 	@IsOptional()
-	@Transform( ( { value } ) => ( typeof value === 'string' ? JSON.parse( value ) : value ) )
+	@Transform( ( { value } ) => {
+		if ( typeof value === 'string' ) {
+			try {
+				const parsed = JSON.parse( value );
+				return plainToInstance( MobileLabKitDto, parsed );
+			} catch ( error ) {
+				return [];
+			}
+		}
+		return plainToInstance( MobileLabKitDto, value );
+	} )
 	@IsArray()
 	@ValidateNested( { each : true } )
 	@Type( () => MobileLabKitDto )
