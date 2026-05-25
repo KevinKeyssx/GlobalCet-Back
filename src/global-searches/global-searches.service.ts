@@ -1,15 +1,19 @@
 import { Injectable } from '@nestjs/common';
 
-import { PrismaException }          from '@prisma/prisma-catch';
-import { PrismaService }            from '@prisma/prisma.service';
-import { Prisma }                   from '@prisma/client';
-import { GlobalSearchQueryDto }     from './dto/global-search-query.dto';
+import { PrismaException }  from '@prisma/prisma-catch';
+import { PrismaService }    from '@prisma/prisma.service';
+import { Prisma }           from '@prisma/client';
 import {
-    IGlobalKit,
-    IGlobalMobileLab,
-    IGlobalProduct,
-    IGlobalSearchResponse
-}                                   from './interfaces/global-search-result.interface';
+	GlobalSearchQueryDto,
+	GlobalSearchSortBy,
+	GlobalSearchSortOrder
+} from '@global-searches/dto/global-search-query.dto';
+import {
+	IGlobalKit,
+	IGlobalMobileLab,
+	IGlobalProduct,
+	IGlobalSearchResponse
+} from '@global-searches/interfaces/global-search-result.interface';
 
 
 @Injectable()
@@ -72,11 +76,9 @@ export class GlobalSearchesService {
 			name        : true,
 			description : true,
 			active      : true,
-			categoryId  : true,
 			createdAt   : true,
 			updatedAt   : true,
 			files       : {
-				where  : { isMain : true },
 				select : {
 					id             : true,
 					url            : true,
@@ -93,6 +95,18 @@ export class GlobalSearchesService {
 					name : true,
 				},
 			},
+            products: {
+                select : {
+                    quantity  : true,
+                    product : {
+                        select : {
+                            id    : true,
+                            name  : true,
+                            sku   : true,
+                        }
+                    }
+                }
+            }
 		};
 	}
 
@@ -108,7 +122,6 @@ export class GlobalSearchesService {
 			createdAt   : true,
 			updatedAt   : true,
 			files       : {
-				where  : { isMain : true },
 				select : {
 					id             : true,
 					url            : true,
@@ -125,16 +138,47 @@ export class GlobalSearchesService {
 					name : true,
 				},
 			},
+            kits : {
+                select: {
+                    id: true,
+                    quantity: true,
+                    kit: {
+                        select: {
+                            id: true,
+                            name: true,
+                            sku: true,
+                        }
+                    }
+                }
+            },
+            products : {
+                select : {
+                    id : true,
+                    quantity : true,
+                    product : {
+                        select : {
+                            id : true,
+                            name : true,
+                            sku : true,
+                        }
+                    }
+                }
+            }
 		};
 	}
 
 
 	async search( queryDto: GlobalSearchQueryDto ): Promise<IGlobalSearchResponse> {
 		try {
-			const { query = '', limitPerEntity = 10, suggestion = true } = queryDto;
-			const cleanQuery = query.trim();
+			const {
+				query = '',
+				limitPerEntity = 10,
+				suggestion = true,
+				sortBy = GlobalSearchSortBy.CREATED_AT,
+				sortOrder = GlobalSearchSortOrder.ASC,
+			} = queryDto;
 
-			const isSkuQuery = cleanQuery.toUpperCase().startsWith( this.SKU_PREFIX );
+			const cleanQuery = ( query ?? '' ).trim();
 
 			let products   : IGlobalProduct[]   = [];
 			let kits       : IGlobalKit[]       = [];
@@ -145,7 +189,48 @@ export class GlobalSearchesService {
 			let totalMobileLabs = 0;
 			let isSuggestion    = false;
 
-			if ( cleanQuery ) {
+			if ( !cleanQuery ) {
+				const [
+					prodCount,
+					prodData,
+					kitCount,
+					kitData,
+					labCount,
+					labData,
+				] = await Promise.all( [
+					this.prisma.product.count({ where : { active : true }}),
+					this.prisma.product.findMany({
+						where   : { active : true },
+						take    : limitPerEntity,
+						select  : this.#getProductSelect(),
+						orderBy : { [ sortBy ] : sortOrder },
+					} ),
+					this.prisma.kit.count({ where : { active : true }}),
+					this.prisma.kit.findMany({
+						where   : { active : true },
+						take    : limitPerEntity,
+						select  : this.#getKitSelect(),
+						orderBy : { [ sortBy ] : sortOrder },
+					}),
+					this.prisma.mobileLab.count({ where : { active : true }}),
+					this.prisma.mobileLab.findMany({
+						where   : { active : true },
+						take    : limitPerEntity,
+						select  : this.#getMobileLabSelect(),
+						orderBy : {[ sortBy ] : sortOrder },
+					}),
+				]);
+
+				products   = prodData as unknown as IGlobalProduct[];
+				kits       = kitData as unknown as IGlobalKit[];
+				mobileLabs = labData as unknown as IGlobalMobileLab[];
+
+				totalProducts   = prodCount;
+				totalKits       = kitCount;
+				totalMobileLabs = labCount;
+			} else {
+				const isSkuQuery = cleanQuery.toUpperCase().startsWith( this.SKU_PREFIX );
+
 				if ( isSkuQuery ) {
 					const whereProduct : Prisma.ProductWhereInput = {
 						sku    : { contains : cleanQuery, mode : 'insensitive' },
@@ -172,21 +257,24 @@ export class GlobalSearchesService {
 					] = await Promise.all( [
 						this.prisma.product.count( { where : whereProduct } ),
 						this.prisma.product.findMany( {
-							where  : whereProduct,
-							take   : limitPerEntity,
-							select : this.#getProductSelect(),
+							where   : whereProduct,
+							take    : limitPerEntity,
+							select  : this.#getProductSelect(),
+							orderBy : { [ sortBy ] : sortOrder },
 						} ),
 						this.prisma.kit.count( { where : whereKit } ),
 						this.prisma.kit.findMany( {
-							where  : whereKit,
-							take   : limitPerEntity,
-							select : this.#getKitSelect(),
+							where   : whereKit,
+							take    : limitPerEntity,
+							select  : this.#getKitSelect(),
+							orderBy : { [ sortBy ] : sortOrder },
 						} ),
 						this.prisma.mobileLab.count( { where : whereMobileLab } ),
 						this.prisma.mobileLab.findMany( {
-							where  : whereMobileLab,
-							take   : limitPerEntity,
-							select : this.#getMobileLabSelect(),
+							where   : whereMobileLab,
+							take    : limitPerEntity,
+							select  : this.#getMobileLabSelect(),
+							orderBy : { [ sortBy ] : sortOrder },
 						} ),
 					] );
 
@@ -224,30 +312,33 @@ export class GlobalSearchesService {
 						kitData,
 						labCount,
 						labData,
-					] = await Promise.all( [
-						this.prisma.product.count( { where : whereProduct } ),
-						this.prisma.product.findMany( {
-							where  : whereProduct,
-							take   : limitPerEntity,
-							select : this.#getProductSelect(),
-						} ),
-						this.prisma.kit.count( { where : whereKit } ),
-						this.prisma.kit.findMany( {
-							where  : whereKit,
-							take   : limitPerEntity,
-							select : this.#getKitSelect(),
-						} ),
-						this.prisma.mobileLab.count( { where : whereMobileLab } ),
-						this.prisma.mobileLab.findMany( {
-							where  : whereMobileLab,
-							take   : limitPerEntity,
-							select : this.#getMobileLabSelect(),
-						} ),
-					] );
+					] = await Promise.all([
+						this.prisma.product.count({ where : whereProduct }),
+						this.prisma.product.findMany({
+							where   : whereProduct,
+							take    : limitPerEntity,
+							select  : this.#getProductSelect(),
+							orderBy : {[ sortBy ] : sortOrder },
+						}),
+						this.prisma.kit.count({ where : whereKit } ),
+						this.prisma.kit.findMany({
+							where   : whereKit,
+							take    : limitPerEntity,
+							select  : this.#getKitSelect(),
+							orderBy : {[ sortBy ] : sortOrder },
+						}),
+						this.prisma.mobileLab.count({ where : whereMobileLab }),
+						this.prisma.mobileLab.findMany({
+							where   : whereMobileLab,
+							take    : limitPerEntity,
+							select  : this.#getMobileLabSelect(),
+							orderBy : {[ sortBy ] : sortOrder },
+						}),
+					]);
 
-					products   = prodData as unknown as IGlobalProduct[];
-					kits       = kitData as unknown as IGlobalKit[];
-					mobileLabs = labData as unknown as IGlobalMobileLab[];
+					products   = prodData as unknown    as IGlobalProduct[];
+					kits       = kitData as unknown     as IGlobalKit[];
+					mobileLabs = labData as unknown     as IGlobalMobileLab[];
 
 					totalProducts   = prodCount;
 					totalKits       = kitCount;
@@ -295,10 +386,10 @@ export class GlobalSearchesService {
 			}
 
 			return {
-				products,
-				kits,
-				mobileLabs,
-				meta : {
+				products   : products,
+				kits       : kits,
+				mobileLabs : mobileLabs,
+				meta       : {
 					totalProducts,
 					totalKits,
 					totalMobileLabs,
