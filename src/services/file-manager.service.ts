@@ -73,6 +73,7 @@ export class FileManagerService {
 
     async uploadMultiple(
         files       : Express.Multer.File[],
+        typeFolder : 'products' | 'kits' | 'labs',
         subfolderId?: string
     ) : Promise<Array<ResponeFileUpload>> {
         if ( !files || files.length === 0 ) return [];
@@ -84,7 +85,7 @@ export class FileManagerService {
                 const uploadPayload: IUploadMultiplePayload[] = files.map( file => {
                     const isVideo    = file.mimetype.startsWith( 'video/' );
                     const folderPath = subfolderId 
-                        ? `${ this.folder }|products|${ subfolderId }` 
+                        ? `${ this.folder }|${ typeFolder }|${ subfolderId }` 
                         : this.folder;
 
                     if ( isVideo ) {
