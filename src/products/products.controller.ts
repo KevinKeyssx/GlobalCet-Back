@@ -12,12 +12,16 @@ import {
     UploadedFiles,
     UseGuards
 }                               from '@nestjs/common';
-import { ApiBody, ApiConsumes, ApiHeader } from '@nestjs/swagger';
-import { FilesInterceptor }     from '@nestjs/platform-express';
 
-import { Product }              from '@prisma/client';
+import {
+    ApiBody,
+    ApiConsumes,
+    ApiHeader
+}                           from '@nestjs/swagger';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { Product }          from '@prisma/client';
 
-import { SecretGuard }          from '@common/guards/secret.guard';
+import { SecretGuard }                  from '@common/guards/secret.guard';
 import { PaginatedResult }              from '@common/interfaces/paginated-result.interface';
 import { ProductsService }              from '@products/products.service';
 import { CreateProductDto }             from '@products/dto/create-product.dto';
@@ -28,6 +32,7 @@ import { ENVS }                         from '@config/envs';
 import { UploadProductImagesDto }       from '@products/dto/upload-product-images.dto';
 import { UpdateProductImagesDto }       from '@products/dto/update-product-images.dto';
 import { DeleteProductImagesDto }       from '@products/dto/delete-product-images.dto';
+import { IncludesItemsDto }             from '@products/dto/includes-items.dto';
 
 
 @UseGuards( SecretGuard )
@@ -107,9 +112,9 @@ export class ProductsController {
 	@Get( ':id' )
 	findOne(
 		@Param( 'id' ) id: string,
-		@Query() filterDto: ProductPaginationFilterDto
+		@Query() includesItemsDto: IncludesItemsDto
 	): Promise<IProduct> {
-		return this.productsService.findOne( id, filterDto );
+		return this.productsService.findOne( id, includesItemsDto );
 	}
 
 
