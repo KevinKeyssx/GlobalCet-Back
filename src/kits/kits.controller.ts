@@ -38,6 +38,7 @@ import { DeleteKitFilesDto }            from '@kits/dto/delete-kit-files.dto';
 import { AddKitProductsDto }            from '@kits/dto/add-kit-products.dto';
 import { UpdateKitProductRelationDto }  from '@kits/dto/kit-product.dto';
 import { DeleteKitProductsDto }         from '@kits/dto/delete-kit-products.dto';
+import { IncludesKitDto }               from '@kits/dto/includes.dto';
 
 
 @ApiTags( 'Kits' )
@@ -92,9 +93,9 @@ export class KitsController {
 	@ApiResponse( { status : 404, description : 'Kit no encontrado.' } )
 	findOne(
 		@Param( 'id' ) id: string,
-		@Query() filterDto: KitPaginationFilterDto,
+		@Query() includesKitDto: IncludesKitDto,
 	): Promise<IKit> {
-		return this.kitsService.findOne( id, filterDto );
+		return this.kitsService.findOne( id, includesKitDto );
 	}
 
 
