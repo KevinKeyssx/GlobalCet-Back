@@ -6,83 +6,89 @@ import {
 	IsString,
 	IsNotEmpty,
 	Length,
-    IsArray,
-    ValidateNested,
+	IsArray,
+	ValidateNested,
 }                       from 'class-validator';
-import { Transform, Type } from 'class-transformer';
+import { Transform, Type, plainToInstance } from 'class-transformer';
 
 import { NameDto }                  from '@common/dto/name.dto';
 import { UploadFilesDto }           from '@common/dto/upload-files.dto';
 import { IncludesItemsDto }         from '@products/dto/includes-items.dto';
-import { ProductFieldsFilterDto }   from '@products/dto/fields-product.dto';
 import { ProductImageConfigDto }    from '@products/dto/product-image-config.dto';
 
 
 export class CreateProductDto extends IntersectionType(
-    UploadFilesDto,
+	UploadFilesDto,
 	NameDto,
 	IncludesItemsDto,
 ) {
 
 	@ApiPropertyOptional( {
 		description : 'Product description',
-		example     : 'This is a description of the product'
+		example     : 'This is a description of the product',
 	} )
 	@IsString()
 	@IsOptional()
 	description?: string;
 
+	@ApiPropertyOptional( {
+		description : 'Product SKU',
+		example     : 'PRODUCT-001',
+	} )
+	@IsString()
+	@IsNotEmpty()
+	@Length( 1, 50 )
+	sku: string;
 
-    @ApiPropertyOptional({
-        description : 'Product SKU',
-        example     : 'PRODUCT-001'
-    })
-    @IsString()
-    @IsNotEmpty()
-    @Length( 1, 50 )
-    sku: string;
-
-
-    @ApiPropertyOptional({
+	@ApiPropertyOptional( {
 		description : 'Technical specifications in JSON format',
-		example     : { color : 'red', size : 'L' }
+		example     : { color : 'red', size : 'L' },
 	} )
 	@IsObject()
 	@IsOptional()
-	@Transform( ({ value }) => ( typeof value === 'string' ? JSON.parse( value ) : value ))
+	@Transform( ( { value } ) => ( typeof value === 'string' ? JSON.parse( value ) : value ) )
 	technical_specs?: Record<string, any>;
 
-
-    @ApiProperty( {
+	@ApiProperty( {
 		description : 'Subcategory ID (ULID)',
-		example     : '01ARZ3NDEKTSV4RRFFQ6KHNQZS'
+		example     : '01ARZ3NDEKTSV4RRFFQ6KHNQZS',
 	} )
 	@IsString()
 	@IsNotEmpty()
 	@Length( 26, 26 )
 	subcategoryId: string;
 
-
-    @ApiProperty( {
+	@ApiProperty( {
 		description : 'Material ID (ULID)',
-		example     : '01ARZ3NDEKTSV4RRFFQ6KHNQZS'
+		example     : '01ARZ3NDEKTSV4RRFFQ6KHNQZS',
 	} )
 	@IsString()
 	@IsNotEmpty()
 	@Length( 26, 26 )
 	materialId: string;
 
+	@ApiPropertyOptional( {
+		description : 'Array of image configurations (JSON stringified)',
+		type        : 'string',
+		example     : '[{"alt":"Front view","isMain":true,"order":1}]',
+	} )
+	@IsOptional()
+	@Transform(({ value }) => {
+		if ( typeof value === 'string' ) {
+			try {
+				const parsed = JSON.parse( value );
 
-    @ApiPropertyOptional( {
-        description : 'Array of image configurations (JSON stringified)',
-        type        : 'string',
-        example     : '[{"alt":"Front view","isMain":true,"order":1}]',
-    } )
-    @IsOptional()
-    @Transform( ({ value }) => ( typeof value === 'string' ? JSON.parse( value ) : value ) )
-    @IsArray()
-    @ValidateNested( { each : true } )
-    @Type( () => ProductImageConfigDto )
-    imagesInfo?: ProductImageConfigDto[];
+                return plainToInstance( ProductImageConfigDto, parsed );
+			} catch ( error ) {
+				return [];
+			}
+		}
+
+        return plainToInstance( ProductImageConfigDto, value );
+	} )
+	@IsArray()
+	@ValidateNested( { each : true } )
+	@Type( () => ProductImageConfigDto )
+	imagesInfo?: ProductImageConfigDto[];
 
 }
