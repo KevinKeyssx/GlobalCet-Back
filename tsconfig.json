@@ -32,6 +32,7 @@
             "@mobile-labs/*"    : ["./src/mobile-labs/*"],
             "@kit-categories/*" : ["./src/kit-categories/*"],
             "@lab-categories/*" : ["./src/lab-categories/*"],
+            "@global-searches/*": ["./src/global-searches/*"],
             "@app/*"            : ["./src/*"],
         }
     }
