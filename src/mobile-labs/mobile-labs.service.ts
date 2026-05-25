@@ -1,32 +1,38 @@
 import { Injectable, ConflictException, BadRequestException } from '@nestjs/common';
 
 import { ulid } from 'ulid';
+import { Prisma } from '@prisma/client';
 
 import {
 	getFileNameWithExtension,
 	mapResourceTypeToAttachmentType,
-}                                   from '@common/utils/file.utils';
-import { PaginatedResult }          from '@common/interfaces/paginated-result.interface';
-import { PrismaException }          from '@prisma/prisma-catch';
-import { PrismaService }            from '@prisma/prisma.service';
-import { MobileLab, Prisma, AttachmentType } from '@prisma/client';
-import { ENVS }                     from '@config/envs';
-import { FileManagerService }       from '@services/file-manager.service';
+}                                       from '@common/utils/file.utils';
 import {
-	IMobileLab,
-	IMobileLabFile,
+    MobileLabProductDto,
+    UpdateMobileLabProductRelationDto
+}                                       from '@mobile-labs/dto/mobile-lab-product.dto';
+import {
+    MobileLabKitDto,
+    UpdateMobileLabKitRelationDto
+}                                       from '@mobile-labs/dto/mobile-lab-kit.dto';
+import { PrismaException }              from '@prisma/prisma-catch';
+import { PaginatedResult }              from '@common/interfaces/paginated-result.interface';
+import { ENVS }                         from '@config/envs';
+import { PrismaService }                from '@prisma/prisma.service';
+import {
+    IMobileLab,
 	IMobileLabProduct,
 	IMobileLabKit,
-}                                   from './models/mobile-lab.interface';
-import { CreateMobileLabDto }       from './dto/create-mobile-lab.dto';
-import { UpdateMobileLabDto }       from './dto/update-mobile-lab.dto';
-import { MobileLabFileConfigDto }   from './dto/mobile-lab-file-config.dto';
-import { UpdateMobileLabFilesDto }  from './dto/update-mobile-lab-files.dto';
-import { DeleteMobileLabFilesDto }  from './dto/delete-mobile-lab-files.dto';
-import { MobileLabProductDto, UpdateMobileLabProductRelationDto } from './dto/mobile-lab-product.dto';
-import { MobileLabKitDto, UpdateMobileLabKitRelationDto }         from './dto/mobile-lab-kit.dto';
-import { DeleteMobileLabRelationsDto } from './dto/delete-mobile-lab-relations.dto';
-import { MobileLabPaginationFilterDto } from './dto/pagination-filter.dto';
+}                                       from '@mobile-labs/models/mobile-lab.interface';
+import { FileManagerService }           from '@services/file-manager.service';
+import { CreateMobileLabDto }           from '@mobile-labs/dto/create-mobile-lab.dto';
+import { UpdateMobileLabDto }           from '@mobile-labs/dto/update-mobile-lab.dto';
+import { MobileLabFileConfigDto }       from '@mobile-labs/dto/mobile-lab-file-config.dto';
+import { UpdateMobileLabFilesDto }      from '@mobile-labs/dto/update-mobile-lab-files.dto';
+import { DeleteMobileLabFilesDto }      from '@mobile-labs/dto/delete-mobile-lab-files.dto';
+import { DeleteMobileLabRelationsDto }  from '@mobile-labs/dto/delete-mobile-lab-relations.dto';
+import { MobileLabPaginationFilterDto } from '@mobile-labs/dto/pagination-filter.dto';
+import { IncludesMobileLabDto }         from '@mobile-labs/dto/includes.dto';
 
 
 @Injectable()
@@ -150,7 +156,7 @@ export class MobileLabsService {
 
 			// Subida de archivos
 			if ( files && files.length > 0 ) {
-				const response = await this.fileManagerService.uploadMultiple( files, mobileLabId );
+				const response = await this.fileManagerService.uploadMultiple( files, 'labs', mobileLabId );
 				uploadedFiles = response;
 			}
 
@@ -277,11 +283,11 @@ export class MobileLabsService {
 	}
 
 
-	async findOne( id : string, filterDto? : MobileLabPaginationFilterDto ) : Promise<IMobileLab> {
+	async findOne( id : string, includesLabDto? : IncludesMobileLabDto ) : Promise<IMobileLab> {
 		try {
-			const includeFiles    = filterDto?.includeFiles ?? true;
-			const includeProducts = filterDto?.includeProducts ?? true;
-			const includeKits     = filterDto?.includeKits ?? true;
+			const includeFiles    = includesLabDto?.includeFiles ?? true;
+			const includeProducts = includesLabDto?.includeProducts ?? true;
+			const includeKits     = includesLabDto?.includeKits ?? true;
 
 			return await this.prisma.mobileLab.findUniqueOrThrow( {
 				where  : { id },
@@ -403,13 +409,12 @@ export class MobileLabsService {
 				throw new BadRequestException( 'No se proporcionaron archivos para subir' );
 			}
 
-			const uploadedFiles = await this.fileManagerService.uploadMultiple( files, mobileLabId );
-
-			const maxOrder = currentFiles.reduce( ( max, img ) => ( img.order !== null && img.order > max ) ? img.order : max, -1 );
-			let nextOrder  = maxOrder + 1;
-
+			const uploadedFiles = await this.fileManagerService.uploadMultiple( files, 'labs', mobileLabId );
+			const maxOrder      = currentFiles.reduce( ( max, img ) => ( img.order !== null && img.order > max ) ? img.order : max, -1 );
 			const hasMain       = currentFiles.some( img => img.isMain );
-			let hasMainAssigned = hasMain;
+
+            let nextOrder       = maxOrder + 1;
+            let hasMainAssigned = hasMain;
 			let visualIndex     = 0;
 
 			const filesCreate = uploadedFiles.map( ( item, index ) => {
