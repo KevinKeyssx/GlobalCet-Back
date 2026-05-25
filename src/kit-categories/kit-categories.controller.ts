@@ -55,7 +55,7 @@ export class KitCategoriesController {
 	@Get()
 	@ApiOperation( { summary : 'Obtener todas las categorías de kits ordenadas alfabéticamente' } )
 	@ApiResponse( { status : 200, description : 'Listado obtenido exitosamente.' } )
-	findAll(): Promise<KitCategory[]> {
+	findAll(): Promise<{ id: string, name: string }[]> {
 		return this.kitCategoriesService.findAll();
 	}
 
