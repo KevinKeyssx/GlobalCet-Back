@@ -36,9 +36,16 @@ export class LabCategoriesService {
 	}
 
 
-	async findAll(): Promise<LabCategory[]> {
+	async findAll(): Promise<{ id: string, name: string }[]> {
 		try {
 			return await this.prisma.labCategory.findMany( {
+                select: {
+                    id: true,
+                    name: true
+                },
+                where: {
+                    active: true
+                },
 				orderBy : { name : 'asc' },
 			} );
 		} catch ( error ) {
