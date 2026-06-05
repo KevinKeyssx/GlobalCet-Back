@@ -49,6 +49,12 @@ export class ProductsService {
 			active          : true,
 			createdAt       : true,
 			updatedAt       : true,
+            subcategory     : {
+                select : {
+                    id : true,
+                    name: true
+                }
+            },
 			files           : {
 				where  : includeImages ? {} : { isMain: true },
 				select : {
