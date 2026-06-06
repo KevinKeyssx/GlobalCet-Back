@@ -1,20 +1,27 @@
 import {
-    Controller,
-    Get,
-    Post,
-    Body,
-    Patch,
-    Param,
-    Delete,
-    UseGuards
+	Controller,
+	Get,
+	Post,
+	Body,
+	Patch,
+	Param,
+	Delete,
+	Query,
+	UseGuards
 } from '@nestjs/common';
-import { ApiTags, ApiBody, ApiHeader } from '@nestjs/swagger';
+import {
+	ApiTags,
+	ApiBody,
+	ApiHeader
+} from '@nestjs/swagger';
 
-import { SecretGuard }          from '@common/guards/secret.guard';
-import { SubCategoriesService } from './sub-categories.service';
-import { CreateSubCategoryDto } from './dto/create-sub-category.dto';
-import { UpdateSubCategoryDto } from './dto/update-sub-category.dto';
-import { Subcategory }          from '@prisma/client';
+import { SecretGuard }                    from '@common/guards/secret.guard';
+import { SubCategoriesService }           from './sub-categories.service';
+import { CreateSubCategoryDto }           from './dto/create-sub-category.dto';
+import { UpdateSubCategoryDto }           from './dto/update-sub-category.dto';
+import { Subcategory }                    from '@prisma/client';
+import { PaginatedResult }                from '@common/interfaces/paginated-result.interface';
+import { SubCategoryPaginationFilterDto } from './dto/pagination-filter.dto';
 
 
 @ApiTags( 'Sub-Categories' )
@@ -27,24 +34,32 @@ import { Subcategory }          from '@prisma/client';
 })
 export class SubCategoriesController {
 
-    constructor(
-        private readonly subCategoriesService: SubCategoriesService
-    ) {}
+	constructor(
+		private readonly subCategoriesService: SubCategoriesService
+	) {}
 
 
-    @Post()
-    @ApiBody( { type : CreateSubCategoryDto } )
-    create(
-        @Body() createSubCategoryDto: CreateSubCategoryDto
-    ): Promise<Subcategory> {
-        return this.subCategoriesService.create( createSubCategoryDto );
-    }
+	@Post()
+	@ApiBody( { type : CreateSubCategoryDto } )
+	create(
+		@Body() createSubCategoryDto: CreateSubCategoryDto
+	): Promise<Subcategory> {
+		return this.subCategoriesService.create( createSubCategoryDto );
+	}
 
 
-    @Get()
-    findAll(): Promise<Subcategory[]> {
-        return this.subCategoriesService.findAll();
-    }
+	@Get()
+	findAll(): Promise<Subcategory[]> {
+		return this.subCategoriesService.findAll();
+	}
+
+
+	@Get( 'paginated' )
+	findAllPaginated(
+		@Query() filterDto: SubCategoryPaginationFilterDto
+	): Promise<PaginatedResult<Subcategory>> {
+		return this.subCategoriesService.findAllPaginated( filterDto );
+	}
 
 
     @Get( ':id' )
