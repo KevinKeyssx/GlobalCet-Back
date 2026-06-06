@@ -317,7 +317,7 @@ export class KitsService {
 
 			if ( kitFiles.length > 0 ) {
 				const fileNames = kitFiles.map( file => file.url );
-				await this.fileManagerService.deleteFiles( id, fileNames );
+				await this.fileManagerService.deleteFiles( 'kits', id, fileNames );
 			}
 
 			// Primero eliminar cascadas manuales si es necesario o dejar que delete haga su trabajo
@@ -508,7 +508,7 @@ export class KitsService {
 				},
 			} );
 
-			await this.fileManagerService.deleteFiles( kitId, [ file.url ] );
+			await this.fileManagerService.deleteFiles( 'kits', kitId, [ file.url ] );
 
 			await this.prisma.kitFile.delete( {
 				where : { id : fileId },
@@ -560,7 +560,7 @@ export class KitsService {
 
 			const fileNames = dbFiles.map( file => file.url );
 
-			await this.fileManagerService.deleteFiles( kitId, fileNames );
+			await this.fileManagerService.deleteFiles( 'kits', kitId, fileNames );
 
 			await this.prisma.kitFile.deleteMany( {
 				where : {
