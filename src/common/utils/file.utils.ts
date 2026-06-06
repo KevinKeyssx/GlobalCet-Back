@@ -6,15 +6,7 @@ export const getFileNameWithExtension = ( secureUrl: string ): string => {
 };
 
 
-export const mapResourceTypeToAttachmentType = ( resourceType: string, secureUrl: string ): AttachmentType => {
-	if ( resourceType === 'image' ) {
-		return 'IMAGE';
-	}
-
-	if ( resourceType === 'video' ) {
-		return 'VIDEOS';
-	}
-
+export const mapResourceTypeToAttachmentType = ( resourceType: string, secureUrl: string ) : AttachmentType => {
 	const filename = secureUrl.toLowerCase();
 
 	if (
@@ -31,5 +23,14 @@ export const mapResourceTypeToAttachmentType = ( resourceType: string, secureUrl
 		return 'DOCUMENTS';
 	}
 
+	if ( resourceType === 'image' ) {
+		return 'IMAGE';
+	}
+
+	if ( resourceType === 'video' ) {
+		return 'VIDEOS';
+	}
+
 	return 'OTHERS';
 };
+
