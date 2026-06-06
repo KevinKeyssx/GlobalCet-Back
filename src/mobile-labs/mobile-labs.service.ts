@@ -506,7 +506,7 @@ export class MobileLabsService {
 			}
 
 			// Eliminar de Cloudinary
-			await this.fileManagerService.deleteFiles( mobileLabId, [ existing.url ] );
+			await this.fileManagerService.deleteFiles( 'labs', mobileLabId, [ existing.url ] );
 
 			// Eliminar del BD
 			await this.prisma.mobileLabFile.delete( {
@@ -559,7 +559,7 @@ export class MobileLabsService {
 			const fileNames = dbFiles.map( file => file.url );
 
 			// Eliminar de Cloudinary
-			await this.fileManagerService.deleteFiles( mobileLabId, fileNames );
+			await this.fileManagerService.deleteFiles( 'labs', mobileLabId, fileNames );
 
 			// Eliminar de la BD
 			await this.prisma.mobileLabFile.deleteMany( {
