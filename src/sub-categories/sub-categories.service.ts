@@ -1,10 +1,16 @@
 import { Injectable } from '@nestjs/common';
 
-import { PrismaException }         from '@prisma/prisma-catch';
-import { PrismaService }           from '@prisma/prisma.service';
-import { CreateSubCategoryDto }    from '@sub-categories/dto/create-sub-category.dto';
-import { UpdateSubCategoryDto }    from '@sub-categories/dto/update-sub-category.dto';
-import { Subcategory }             from '@prisma/client';
+import { PrismaException }              from '@prisma/prisma-catch';
+import { PrismaService }                from '@prisma/prisma.service';
+import { CreateSubCategoryDto }         from '@sub-categories/dto/create-sub-category.dto';
+import { UpdateSubCategoryDto }         from '@sub-categories/dto/update-sub-category.dto';
+import { Subcategory, Prisma }          from '@prisma/client';
+import { PaginatedResult }              from '@common/interfaces/paginated-result.interface';
+import {
+	SubCategoryPaginationFilterDto,
+	SubCategoryOrderField,
+	OrderType
+}                                       from '@sub-categories/dto/pagination-filter.dto';
 
 
 @Injectable()
@@ -29,6 +35,57 @@ export class SubCategoriesService {
 	async findAll(): Promise<Subcategory[]> {
 		try {
 			return await this.prisma.subcategory.findMany();
+		} catch ( error ) {
+			throw PrismaException.catch( error );
+		}
+	}
+
+
+	async findAllPaginated( filterDto: SubCategoryPaginationFilterDto ): Promise<PaginatedResult<Subcategory>> {
+		try {
+			const {
+				page = 1,
+				size = 10,
+				name,
+				active,
+				categoryId,
+				includeCategory = false,
+				order = SubCategoryOrderField.NAME,
+				typeOrder = OrderType.ASC,
+			} = filterDto;
+
+			const skip = ( page - 1 ) * size;
+
+			const where: Prisma.SubcategoryWhereInput = {
+				...( name && { name : { contains : name, mode : 'insensitive' } } ),
+				...( active !== undefined && { active } ),
+				...( categoryId && { categoryId } ),
+			};
+
+			const [ total, data ] = await Promise.all( [
+				this.prisma.subcategory.count( { where } ),
+				this.prisma.subcategory.findMany( {
+					where,
+					skip,
+					take    : size,
+					include : {
+						category : includeCategory,
+					},
+					orderBy : {
+						[ order ] : typeOrder,
+					},
+				} ),
+			] );
+
+			return {
+				data,
+				meta : {
+					total      : total,
+					page       : page,
+					size       : size,
+					totalPages : Math.ceil( total / size ),
+				},
+			};
 		} catch ( error ) {
 			throw PrismaException.catch( error );
 		}
