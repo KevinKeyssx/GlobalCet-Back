@@ -31,7 +31,7 @@ import { IProduct }                     from '@products/models/product.interface
 import { ENVS }                         from '@config/envs';
 import { UploadProductImagesDto }       from '@products/dto/upload-product-images.dto';
 import { UpdateProductImagesDto }       from '@products/dto/update-product-images.dto';
-import { DeleteProductImagesDto }       from '@products/dto/delete-product-images.dto';
+import { DeleteProductFilesDto }        from '@products/dto/delete-product-files.dto';
 import { IncludesItemsDto }             from '@products/dto/includes-items.dto';
 
 
@@ -69,9 +69,9 @@ export class ProductsController {
     @ApiConsumes( 'multipart/form-data' )
     @UseInterceptors( FilesInterceptor( 'files', ENVS.FILE_UPLOAD_LIMIT ) )
     uploadImages(
-        @Param( 'id' ) productId : string,
-        @UploadedFiles() files   : Express.Multer.File[],
-        @Body() uploadProductImagesDto: UploadProductImagesDto,
+        @Param( 'id' ) productId        : string,
+        @UploadedFiles() files          : Express.Multer.File[],
+        @Body() uploadProductImagesDto  : UploadProductImagesDto,
     ): Promise<IProduct> {
         if ( !files || files.length === 0 ) {
             throw new BadRequestException( 'No se proporcionaron archivos para subir' );
@@ -81,7 +81,7 @@ export class ProductsController {
             throw new BadRequestException( `You can upload a maximum of ${ ENVS.FILE_UPLOAD_LIMIT } files` );
         }
 
-        return this.productsService.uploadProductImages( productId, files, uploadProductImagesDto );
+        return this.productsService.uploadProductFiles( productId, files, uploadProductImagesDto );
     }
 
 
@@ -140,17 +140,17 @@ export class ProductsController {
         @Param( 'id' ) productId : string,
         @Param( 'imageId' ) imageId : string,
     ): Promise<{ message : string }> {
-        return this.productsService.deleteProductImage( productId, imageId );
+        return this.productsService.deleteProductFile( productId, imageId );
     }
 
 
     @Post( ':id/images/delete' )
-    @ApiBody({ type : DeleteProductImagesDto })
+    @ApiBody({ type : DeleteProductFilesDto })
     deleteImages(
         @Param( 'id' ) productId : string,
-        @Body() deleteProductImagesDto : DeleteProductImagesDto,
+        @Body() deleteProductImagesDto : DeleteProductFilesDto,
     ): Promise<{ message : string }> {
-        return this.productsService.deleteProductImages( productId, deleteProductImagesDto );
+        return this.productsService.deleteProductFiles( productId, deleteProductImagesDto );
     }
 
 }
