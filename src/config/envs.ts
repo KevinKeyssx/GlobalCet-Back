@@ -10,6 +10,7 @@ interface EnvVars {
 
     FILE_UPLOAD_LIMIT           : number;
     FILE_MANAGER_URL            : string;
+    FILE_MANAGE_DELETE_ENDPOINT : string;
     FILE_MANAGE_MULTIPLE_UPLOAD_ENDPOINT : string;
     FILE_MANAGE_MULTIPLE_DELETE_ENDPOINT : string;
     FILE_MANAGE_MULTIPLE_DELETE_FILES_ENDPOINT : string;
@@ -29,6 +30,7 @@ const envsSchema = joi.object({
 
     FILE_UPLOAD_LIMIT                       : joi.number().default( 5 ),
     FILE_MANAGER_URL                        : joi.string().required(),
+    FILE_MANAGE_DELETE_ENDPOINT             : joi.string().required(),
     FILE_MANAGE_MULTIPLE_UPLOAD_ENDPOINT    : joi.string().required(),
     FILE_MANAGE_MULTIPLE_DELETE_ENDPOINT    : joi.string().required(),
     FILE_MANAGE_MULTIPLE_DELETE_FILES_ENDPOINT: joi.string().required(),
@@ -58,15 +60,15 @@ export const ENVS = {
     X_SECRET          : envVars.X_SECRET,
 
     FILE_MANAGER : {
-        URL                         : envVars.FILE_MANAGER_URL,
-        MULTIPLE_UPLOAD_ENDPOINT    : envVars.FILE_MANAGE_MULTIPLE_UPLOAD_ENDPOINT,
-        MULTIPLE_DELETE_ENDPOINT    : envVars.FILE_MANAGE_MULTIPLE_DELETE_ENDPOINT,
-        MULTIPLE_DELETE_FILES_ENDPOINT: envVars.FILE_MANAGE_MULTIPLE_DELETE_FILES_ENDPOINT,
-        FOLDER                      : envVars.FILE_MANAGER_FOLDER,
-        FORMAT                      : envVars.FILE_MANAGER_FORMAT,
-        QUALITY                     : envVars.FILE_MANAGER_QUALITY,
-        MAX_RETRIES                 : envVars.FILE_MANAGER_MAX_RETRIES,
-        RETRY_DELAY                 : envVars.FILE_MANAGER_RETRY_DELAY,
+        URL                             : envVars.FILE_MANAGER_URL,
+        DELETE_ENDPOINT                 : envVars.FILE_MANAGE_DELETE_ENDPOINT,
+        MULTIPLE_UPLOAD_ENDPOINT        : envVars.FILE_MANAGE_MULTIPLE_UPLOAD_ENDPOINT,
+        MULTIPLE_DELETE_ENDPOINT        : envVars.FILE_MANAGE_MULTIPLE_DELETE_ENDPOINT,
+        MULTIPLE_DELETE_FILES_ENDPOINT  : envVars.FILE_MANAGE_MULTIPLE_DELETE_FILES_ENDPOINT,
+        FOLDER                          : envVars.FILE_MANAGER_FOLDER,
+        FORMAT                          : envVars.FILE_MANAGER_FORMAT,
+        QUALITY                         : envVars.FILE_MANAGER_QUALITY,
+        MAX_RETRIES                     : envVars.FILE_MANAGER_MAX_RETRIES,
+        RETRY_DELAY                     : envVars.FILE_MANAGER_RETRY_DELAY,
     },
 }
-
