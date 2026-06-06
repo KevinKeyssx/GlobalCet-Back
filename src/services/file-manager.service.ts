@@ -40,6 +40,27 @@ export interface ICloudinaryMultipleUploadResponse {
 }
 
 
+export type TypeFolder = 'products' | 'kits' | 'labs';
+
+
+const extensionsImgVideo = [
+    'jpg',
+    'jpeg',
+    'png',
+    'webp',
+    'gif',
+    'bmp',
+    'svg',
+    'avif',
+    'mp4',
+    'mov',
+    'webm',
+    'avi',
+    'mkv',
+    'flv',
+    'wmv',
+];
+
 @Injectable()
 export class FileManagerService {
 
@@ -72,9 +93,9 @@ export class FileManagerService {
 
 
     async uploadMultiple(
-        files       : Express.Multer.File[],
-        typeFolder : 'products' | 'kits' | 'labs',
-        subfolderId?: string
+        files           : Express.Multer.File[],
+        typeFolder      : TypeFolder,
+        subfolderId?    : string
     ) : Promise<Array<ResponeFileUpload>> {
         if ( !files || files.length === 0 ) return [];
 
@@ -98,9 +119,10 @@ export class FileManagerService {
                     return {
                         folder  : folderPath,
                         quality : String( this.QUALITY ),
-                        format  : this.FORMAT,
+                        // format  : this.FORMAT,
                     };
                 });
+                console.log('🚀 ~ FileManagerService ~ uploadMultiple ~ uploadPayload:', uploadPayload)
 
                 formData.append( 'upload', JSON.stringify( uploadPayload ));
 
@@ -116,6 +138,7 @@ export class FileManagerService {
                     method : METHOD.POST,
                     body   : formData as any,
                 });
+                console.log('🚀 ~ FileManagerService ~ uploadMultiple ~ response:', response)
 
                 if ( isApiError( response )) {
                     throw new BadRequestException( 'Error al subir los archivos múltiples' );
@@ -164,11 +187,23 @@ export class FileManagerService {
     }
 
 
-    async delete( imageUrl : string ) : Promise<void> {
+    async deleteOneFile(
+        typeFolder  : TypeFolder,
+        subfolerId  : string,
+        urlId       : string,
+    ) : Promise<void> {
         try {
             await this.withRetry( async () => {
-                const deletePath = `${ this.folder }|${ imageUrl.split( '.' )[0] }`;
-                const endpoint   = `${ this.baseUrl }/delete/${ deletePath }`;
+                const [ nameFile, extension ] = urlId.split( '.' );
+
+                let fileUrl = urlId;
+
+                if ( extensionsImgVideo.includes( extension )) {
+                    fileUrl = nameFile;
+                }
+
+                const deletePath = `${ this.folder }|${ typeFolder }|${subfolerId}|${fileUrl}`;
+                const endpoint   = `${ this.baseUrl }/${ENVS.FILE_MANAGER.DELETE_ENDPOINT}/${ deletePath }`;
 
                 const response = await connectRequest<RespondeFileManager>({
                     endpoint,
@@ -193,6 +228,33 @@ export class FileManagerService {
     }
 
 
+    async deleteFiles(
+        typeFolder  : TypeFolder,
+        subfolderId : string,
+        fileNames   : string[]
+    ) : Promise<void> {
+        try {
+            await this.withRetry( async () => {
+                const folderPath    = `${ this.folder }|${typeFolder}|${ subfolderId }`;
+                const endpoint      = `${ this.baseUrl }/${ ENVS.FILE_MANAGER.MULTIPLE_DELETE_FILES_ENDPOINT }?path=${ folderPath }`;
+                const fileIds       = fileNames.map( id => id.split( '.' )[ 0 ] )
+
+                const response = await connectRequest<any>({
+                    endpoint,
+                    method : METHOD.POST,
+                    body   : { files : fileIds },
+                });
+
+                if ( isApiError( response )) {
+                    throw new BadRequestException( 'Error al eliminar archivos por lote' );
+                }
+            });
+        } catch ( error ) {
+            throw new BadRequestException( `Error al eliminar archivos por lote` );
+        }
+    }
+
+
     async deleteMultiple( subfolderId: string ): Promise<void> {
         try {
             await this.withRetry( async () => {
@@ -213,27 +275,4 @@ export class FileManagerService {
         }
     }
 
-
-    async deleteFiles( subfolderId : string, fileNames : string[] ) : Promise<void> {
-        try {
-            await this.withRetry( async () => {
-                const folderPath = `${ this.folder }|products|${ subfolderId }`;
-                const endpoint   = `${ this.baseUrl }/${ ENVS.FILE_MANAGER.MULTIPLE_DELETE_FILES_ENDPOINT }?path=${ folderPath }`;
-
-                const response = await connectRequest<any>({
-                    endpoint,
-                    method : METHOD.POST,
-                    body   : { files : fileNames },
-                });
-
-                if ( isApiError( response )) {
-                    throw new BadRequestException( 'Error al eliminar archivos por lote' );
-                }
-            });
-        } catch ( error ) {
-            throw new BadRequestException( `Error al eliminar archivos por lote` );
-        }
-    }
-
 }
-
