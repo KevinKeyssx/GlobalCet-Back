@@ -21,7 +21,7 @@ import { ProductPaginationFilterDto }   from '@products/dto/pagination-filter.dt
 import { IProduct }                     from '@products/models/product.interface';
 import { UpdateProductImagesDto }       from '@products/dto/update-product-images.dto';
 import { UploadProductImagesDto }       from '@products/dto/upload-product-images.dto';
-import { DeleteProductImagesDto }       from '@products/dto/delete-product-images.dto';
+import { DeleteProductFilesDto }       from '@products/dto/delete-product-files.dto';
 import { IncludesItemsDto }             from '@products/dto/includes-items.dto';
 
 
@@ -329,22 +329,25 @@ export class ProductsService {
 	}
 
 
-    async deleteProductImage( productId : string, imageId : string ) : Promise<{ message : string }> {
+    async deleteProductFile(
+        productId   : string,
+        imageId     : string
+    ) : Promise<{ message : string }> {
         try {
-            const image = await this.prisma.productFile.findFirstOrThrow({
+            const file = await this.prisma.productFile.findFirstOrThrow({
                 where : {
                     id			: imageId,
                     productId	: productId,
                 },
             });
 
-            await this.fileManagerService.deleteFiles( productId, [ image.url ] );
+            await this.fileManagerService.deleteOneFile( 'products', productId, file.url );
 
             await this.prisma.productFile.delete({
                 where : { id : imageId },
             });
 
-            if ( image.isMain ) {
+            if ( file.isMain ) {
                 const nextMainImage = await this.prisma.productFile.findFirst({
                     where : {
                         productId,
@@ -363,14 +366,14 @@ export class ProductsService {
                 }
             }
 
-            return { message : 'Imagen eliminada exitosamente' };
+            return { message : 'Archivo eliminado exitosamente' };
         } catch ( error ) {
             throw PrismaException.catch( error );
         }
     }
 
 
-    async uploadProductImages(
+    async uploadProductFiles(
         productId : string,
         files     : Express.Multer.File[],
         uploadProductImagesDto: UploadProductImagesDto,
@@ -378,21 +381,21 @@ export class ProductsService {
         try {
             const { imagesInfo } = uploadProductImagesDto;
 
-            const currentImages = await this.prisma.productFile.findMany({
+            const currentFiles = await this.prisma.productFile.findMany({
                 where   : { productId },
                 orderBy : { order : 'asc' },
             });
 
-            const currentCount = currentImages.length;
+            const currentCount = currentFiles.length;
             const limit        = ENVS.FILE_UPLOAD_LIMIT;
 
             if ( currentCount >= limit ) {
-                throw new BadRequestException( `El producto ya tiene el límite de ${ limit } imágenes` );
+                throw new BadRequestException( `El producto ya tiene el límite de ${ limit } archivos` );
             }
 
             if ( currentCount + files.length > limit ) {
                 throw new BadRequestException(
-                    `No se pueden subir ${ files.length } imágenes. El límite es ${ limit } y ya tiene ${ currentCount }.`
+                    `No se pueden subir ${ files.length } archivos. El límite es ${ limit } y ya tiene ${ currentCount }.`
                 );
             }
 
@@ -400,40 +403,41 @@ export class ProductsService {
                 throw new BadRequestException( 'No se proporcionaron archivos para subir' );
             }
 
-            const validFiles = files;
+            const validFiles        = files;
+            const uploadedImages    = await this.fileManagerService.uploadMultiple( validFiles, 'products', productId );
+            const maxOrder          = currentFiles.reduce( ( max, img ) => ( img.order !== null && img.order > max ) ? img.order : max, -1 );
+            const hasMain           = currentFiles.some( img => img.isMain );
 
-            const uploadedImages = await this.fileManagerService.uploadMultiple( validFiles, 'products', productId );
-
-            const maxOrder = currentImages.reduce( ( max, img ) => ( img.order !== null && img.order > max ) ? img.order : max, -1 );
-            let nextOrder  = maxOrder + 1;
-
-            const hasMain       = currentImages.some( img => img.isMain );
+            let nextOrder       = maxOrder + 1;
             let hasMainAssigned = hasMain;
             let visualIndex     = 0;
 
-            const imagesCreate = uploadedImages.map( ( item, index ) => {
-                const type = mapResourceTypeToAttachmentType( item.resource_type, item.secure_url );
-                const isVisual = type === 'IMAGE' || type === 'VIDEOS';
-                const info     = imagesInfo?.[ index ];
+            const filesCreate = uploadedImages.map( ( item, index ) => {
+                const type      = mapResourceTypeToAttachmentType( item.resource_type, item.secure_url );
+                const isVisual  = type === 'IMAGE' || type === 'VIDEOS';
+                const info      = imagesInfo?.[ index ];
 
                 let isMain                  = false;
                 let order: number | null    = null;
 
                 if ( isVisual ) {
                     isMain = info?.isMain ?? ( !hasMainAssigned && visualIndex === 0 );
+
                     if ( isMain ) {
                         hasMainAssigned = true;
                     }
+
                     order = info?.order ?? nextOrder++;
+
                     visualIndex++;
                 }
 
                 return {
                     url             : getFileNameWithExtension( item.secure_url ),
                     alt             : info?.alt || null,
+                    attachmentType  : type,
                     isMain,
                     order,
-                    attachmentType  : type,
                 };
             });
 
@@ -441,7 +445,7 @@ export class ProductsService {
                 where : { id : productId },
                 data  : {
                     files : {
-                        create : imagesCreate,
+                        create : filesCreate,
                     },
                 },
                 select : this.#getProductSelect( true, false, false ),
@@ -463,9 +467,9 @@ export class ProductsService {
                 where : { productId },
             });
 
-            if ( currentImages.length !== imagesInfo.length ) {
-                throw new BadRequestException( 'Se deben proporcionar todas las imágenes del producto' );
-            }
+            // if ( currentImages.length !== imagesInfo.length ) {
+            //     throw new BadRequestException( 'Se deben proporcionar todas las imágenes del producto' );
+            // }
 
             const currentImageIds = currentImages.map( img => img.id );
             const incomingIds     = imagesInfo.map( info => info.id );
@@ -526,41 +530,46 @@ export class ProductsService {
     }
 
 
-    async deleteProductImages(
-        productId              : string,
-        deleteProductImagesDto : DeleteProductImagesDto,
+    async deleteProductFiles(
+        productId               : string,
+        deleteProductFilesDto   : DeleteProductFilesDto,
     ) : Promise<{ message : string }> {
         try {
-            const { imageIds } = deleteProductImagesDto;
+            const { fileIds } = deleteProductFilesDto;
 
-            const images = await this.prisma.productFile.findMany({
+            const files = await this.prisma.productFile.findMany({
                 where : {
-                    id			: { in : imageIds },
-                    productId	: productId,
+                    id : { in : fileIds },
+                    productId,
                 },
+                select : {
+                    url     : true,
+                    isMain  : true
+                }
             });
 
-            if ( images.length !== imageIds.length ) {
-                throw new BadRequestException( 'Una o más imágenes no fueron encontradas o no pertenecen al producto' );
-            }
+            // if ( files.length !== fileIds.length ) {
+            //     throw new BadRequestException( 'Uno o más archivos no fueron encontrados en el producto.' );
+            // }
 
-            const fileNames = images.map( img => img.url );
+            const fileNames = files.map( file => file.url );
 
-            await this.fileManagerService.deleteFiles( productId, fileNames );
+            await this.fileManagerService.deleteFiles( 'products', productId, fileNames );
+            // await this.fileManagerService.deleteOneFile( productId );
 
             await this.prisma.productFile.deleteMany({
                 where : {
-                    id : { in : imageIds },
+                    id : { in : fileIds },
                 },
             });
 
-            const hasMainDeleted = images.some( img => img.isMain === true );
+            const hasMainDeleted = files.some( img => img.isMain === true );
 
             if ( hasMainDeleted ) {
                 const nextMainImage = await this.prisma.productFile.findFirst({
                     where : {
                         productId,
-                        id			: { notIn : imageIds },
+                        id			: { notIn : fileIds },
                     },
                     orderBy : {
                         order : 'asc',
