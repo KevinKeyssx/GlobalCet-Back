@@ -195,8 +195,7 @@ export class KitsService {
 			const {
 				page = 1,
 				size = 10,
-				name,
-				sku,
+				query,
 				active,
 				categories,
 				includeFiles = false,
@@ -205,12 +204,33 @@ export class KitsService {
 
 			const skip = ( page - 1 ) * size;
 
-			const where: Prisma.KitWhereInput = {
-				...( name && { name : { contains : name, mode : 'insensitive' } } ),
-				...( sku && { sku : { contains : sku, mode : 'insensitive' } } ),
+			let where: Prisma.KitWhereInput = {
 				...( active !== undefined && { active } ),
 				...( categories && categories.length > 0 && { categoryId : { in : categories } } ),
 			};
+
+			if ( query ) {
+				if ( query.toLowerCase().startsWith( 'c' ) ) {
+					const skuWhere: Prisma.KitWhereInput = {
+						...where,
+						sku : { contains : query, mode : 'insensitive' },
+					};
+					const count = await this.prisma.kit.count( { where : skuWhere } );
+					if ( count > 0 ) {
+						where = skuWhere;
+					} else {
+						where = {
+							...where,
+							name : { contains : query, mode : 'insensitive' },
+						};
+					}
+				} else {
+					where = {
+						...where,
+						name : { contains : query, mode : 'insensitive' },
+					};
+				}
+			}
 
 			const [ total, data ] = await Promise.all( [
 				this.prisma.kit.count( { where } ),
