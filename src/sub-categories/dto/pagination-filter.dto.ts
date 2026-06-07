@@ -1,11 +1,11 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
-    IsOptional,
-    IsString,
-    IsBoolean,
-    IsEnum,
-    Matches,
-    Length
+	IsOptional,
+	IsString,
+	IsBoolean,
+	IsEnum,
+	Matches,
+	IsArray
 }                       from 'class-validator';
 import { Transform }    from 'class-transformer';
 
@@ -46,16 +46,19 @@ export class SubCategoryPaginationFilterDto extends PaginationDto {
 
 
 	@ApiPropertyOptional( {
-		description	: 'Filter by category ID (ULID)',
-		example		: '01ARZ3NDEKTSV4RRFFQ6KHNQZS',
+		description	: 'Filter by category IDs (ULIDs)',
+		type		: [ String ],
+		example		: [ '01ARZ3NDEKTSV4RRFFQ6KHNQZS' ],
 	} )
 	@IsOptional()
-	@IsString()
+	@IsArray()
+	@IsString( { each : true } )
 	@Matches( /^[0-9A-HJKMNP-TV-Z]{26}$/, {
-		message	: 'categoryId must be a valid ULID (26 characters, uppercase)',
+		each	: true,
+		message	: 'Each categoryId must be a valid ULID (26 characters, uppercase)',
 	} )
-	@Length( 26, 26 )
-	categoryId?: string;
+	@Transform( ( { value } ) => ( typeof value === 'string' ? [ value ] : value ) )
+	categoryIds?: string[];
 
 
 	@ApiPropertyOptional( {
