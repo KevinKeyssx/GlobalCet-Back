@@ -48,7 +48,7 @@ export class SubCategoriesService {
 				size = 10,
 				name,
 				active,
-				categoryId,
+				categoryIds,
 				includeCategory = false,
 				order = SubCategoryOrderField.NAME,
 				typeOrder = OrderType.ASC,
@@ -59,7 +59,7 @@ export class SubCategoriesService {
 			const where: Prisma.SubcategoryWhereInput = {
 				...( name && { name : { contains : name, mode : 'insensitive' } } ),
 				...( active !== undefined && { active } ),
-				...( categoryId && { categoryId } ),
+				...( categoryIds && categoryIds.length > 0 && { categoryId : { in : categoryIds } } ),
 			};
 
 			const [ total, data ] = await Promise.all( [
