@@ -18,20 +18,12 @@ export class KitPaginationFilterDto extends IntersectionType(
 ) {
 
 	@ApiPropertyOptional( {
-		description : 'Filtrar por nombre parcial del kit',
-		example     : 'Kit de Bioquímica',
+		description	: 'Búsqueda inteligente por nombre o SKU',
+		example		: 'Kit de Bioquímica',
 	} )
 	@IsOptional()
 	@IsString()
-	name?: string;
-
-	@ApiPropertyOptional({
-		description : 'Filtrar por SKU parcial del kit',
-		example     : 'KIT-BIO-001',
-	} )
-	@IsOptional()
-	@IsString()
-	sku?: string;
+	query?: string;
 
 	@ApiPropertyOptional({
 		description : 'Filtrar por estado activo/inactivo',
