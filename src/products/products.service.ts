@@ -28,6 +28,9 @@ import { IncludesItemsDto }             from '@products/dto/includes-items.dto';
 @Injectable()
 export class ProductsService {
 
+	private readonly SKU_PREFIX = 'c';
+
+
 	constructor(
 		private readonly prisma: PrismaService,
         private readonly fileManagerService: FileManagerService,
@@ -58,11 +61,12 @@ export class ProductsService {
 			files           : {
 				where  : includeImages ? {} : { isMain: true },
 				select : {
-					id     : true,
-					url    : true,
-					alt    : true,
-					isMain : true,
-					order  : true,
+					id              : true,
+					url             : true,
+					alt             : true,
+					isMain          : true,
+					order           : true,
+                    attachmentType  : true,
 				},
 			},
 			...( includeKits && {
@@ -199,6 +203,7 @@ export class ProductsService {
 			const {
 				page = 1,
 				size = 10,
+				query,
 				materials,
 				active,
 				subcategories,
@@ -209,11 +214,34 @@ export class ProductsService {
 
 			const skip = ( page - 1 ) * size;
 
-			const where: Prisma.ProductWhereInput = {
+			let where: Prisma.ProductWhereInput = {
 				...( materials && materials.length > 0 && { materialId : { in : materials } } ),
 				...( active !== undefined && { active } ),
 				...( subcategories && subcategories.length > 0 && { subcategoryId : { in : subcategories } } ),
 			};
+
+			if ( query ) {
+				if ( query.toLowerCase().startsWith( this.SKU_PREFIX ) ) {
+					const skuWhere: Prisma.ProductWhereInput = {
+						...where,
+						sku : { contains : query, mode : 'insensitive' },
+					};
+					const count = await this.prisma.product.count( { where : skuWhere } );
+					if ( count > 0 ) {
+						where = skuWhere;
+					} else {
+						where = {
+							...where,
+							name : { contains : query, mode : 'insensitive' },
+						};
+					}
+				} else {
+					where = {
+						...where,
+						name : { contains : query, mode : 'insensitive' },
+					};
+				}
+			}
 
 			const [ total, data ] = await Promise.all([
 				this.prisma.product.count({ where }),

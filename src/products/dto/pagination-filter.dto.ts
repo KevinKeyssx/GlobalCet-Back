@@ -25,4 +25,12 @@ export class ProductPaginationFilterDto extends IntersectionType(
 	@Transform( ({ value }) => ( Array.isArray( value ) ? value : [ value ] ) )
 	subcategories?: string[];
 
+	@ApiPropertyOptional( {
+		description : 'Filtrar por nombre o SKU del producto (búsqueda parcial)',
+		example     : 'PROD-BIO-001 o Producto',
+	} )
+	@IsOptional()
+	@IsString()
+	query?: string;
+
 }

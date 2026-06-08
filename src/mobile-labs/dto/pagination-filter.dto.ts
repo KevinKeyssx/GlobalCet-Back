@@ -38,20 +38,12 @@ export class MobileLabPaginationFilterDto extends IncludesMobileLabDto {
 	size?: number = 10;
 
 	@ApiPropertyOptional( {
-		description : 'Filtrar por nombre del laboratorio móvil (búsqueda parcial)',
-		example     : 'Laboratorio de Bioquímica',
+		description : 'Filtrar por nombre o SKU del laboratorio móvil (búsqueda parcial)',
+		example     : 'LAB-BIO-001 o Laboratorio',
 	} )
 	@IsOptional()
 	@IsString()
-	name?: string;
-
-	@ApiPropertyOptional( {
-		description : 'Filtrar por SKU del laboratorio móvil (búsqueda parcial)',
-		example     : 'LAB-BIO-001',
-	} )
-	@IsOptional()
-	@IsString()
-	sku?: string;
+	query?: string;
 
 	@ApiPropertyOptional( {
 		description : 'Filtrar por estado activo/inactivo',

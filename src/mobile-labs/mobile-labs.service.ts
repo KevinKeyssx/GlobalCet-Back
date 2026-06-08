@@ -38,6 +38,9 @@ import { IncludesMobileLabDto }         from '@mobile-labs/dto/includes.dto';
 @Injectable()
 export class MobileLabsService {
 
+	private readonly SKU_PREFIX = 'c';
+
+
 	constructor(
 		private readonly prisma             : PrismaService,
 		private readonly fileManagerService : FileManagerService,
@@ -239,8 +242,7 @@ export class MobileLabsService {
 			const {
 				page            = 1,
 				size            = 10,
-				name,
-				sku,
+				query,
 				active,
 				categories,
 				includeFiles    = false,
@@ -250,12 +252,33 @@ export class MobileLabsService {
 
 			const skip = ( page - 1 ) * size;
 
-			const where : Prisma.MobileLabWhereInput = {
-				...( name && { name : { contains : name, mode : 'insensitive' } } ),
-				...( sku && { sku : { contains : sku, mode : 'insensitive' } } ),
+			let where : Prisma.MobileLabWhereInput = {
 				...( active !== undefined && { active } ),
 				...( categories && categories.length > 0 && { categoryId : { in : categories } } ),
 			};
+
+			if ( query ) {
+				if ( query.toLowerCase().startsWith( this.SKU_PREFIX ) ) {
+					const skuWhere : Prisma.MobileLabWhereInput = {
+						...where,
+						sku : { contains : query, mode : 'insensitive' },
+					};
+					const count = await this.prisma.mobileLab.count( { where : skuWhere } );
+					if ( count > 0 ) {
+						where = skuWhere;
+					} else {
+						where = {
+							...where,
+							name : { contains : query, mode : 'insensitive' },
+						};
+					}
+				} else {
+					where = {
+						...where,
+						name : { contains : query, mode : 'insensitive' },
+					};
+				}
+			}
 
 			const [ total, data ] = await Promise.all( [
 				this.prisma.mobileLab.count( { where } ),
