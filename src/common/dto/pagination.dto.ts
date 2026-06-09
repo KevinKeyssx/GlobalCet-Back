@@ -1,11 +1,20 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 import {
-    IsOptional,
+	IsOptional,
 	IsInt,
-	Min
+	Min,
+	IsIn,
+	IsEnum
 }               from 'class-validator';
 import { Type } from 'class-transformer';
+
+
+export enum SubCategoryOrderField {
+	NAME       = 'name',
+	CREATED_AT = 'createdAt',
+	UPDATED_AT = 'updatedAt',
+}
 
 
 export class PaginationDto {
@@ -32,4 +41,23 @@ export class PaginationDto {
 	@Type( () => Number )
 	size? : number = 10;
 
+	@ApiPropertyOptional( {
+		description	: 'Dirección de ordenamiento',
+		enum		: [ 'asc', 'desc' ],
+		example		: 'asc',
+	} )
+	@IsOptional()
+	@IsIn( [ 'asc', 'desc' ] )
+	order? : 'asc' | 'desc';
+
+	@ApiPropertyOptional( {
+		description	: 'Field to order by',
+		enum		: SubCategoryOrderField,
+		default		: SubCategoryOrderField.NAME,
+	} )
+	@IsOptional()
+	@IsEnum( SubCategoryOrderField )
+	orderBy? : SubCategoryOrderField = SubCategoryOrderField.NAME;
+
 }
+
