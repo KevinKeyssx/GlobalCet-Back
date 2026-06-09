@@ -1,41 +1,21 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional, IntersectionType } from '@nestjs/swagger';
 
 import {
-    IsArray,
-    IsBoolean,
-    IsInt,
-    IsOptional,
-    IsString,
-    Min
+	IsArray,
+	IsBoolean,
+	IsOptional,
+	IsString
 }                           from 'class-validator';
-import { Transform, Type }  from 'class-transformer';
+import { Transform }        from 'class-transformer';
 
-import { IncludesMobileLabDto } from '@mobile-labs/dto/includes.dto';
+import { PaginationDto }          from '@common/dto/pagination.dto';
+import { IncludesMobileLabDto }   from '@mobile-labs/dto/includes.dto';
 
 
-export class MobileLabPaginationFilterDto extends IncludesMobileLabDto {
-
-	@ApiPropertyOptional( {
-		description : 'Número de página para la paginación',
-		example     : 1,
-		default     : 1,
-	} )
-	@IsOptional()
-	@IsInt()
-	@Min( 1 )
-	@Type( () => Number )
-	page?: number = 1;
-
-	@ApiPropertyOptional( {
-		description : 'Tamaño de elementos por página',
-		example     : 10,
-		default     : 10,
-	} )
-	@IsOptional()
-	@IsInt()
-	@Min( 1 )
-	@Type( () => Number )
-	size?: number = 10;
+export class MobileLabPaginationFilterDto extends IntersectionType(
+	PaginationDto,
+	IncludesMobileLabDto
+) {
 
 	@ApiPropertyOptional( {
 		description : 'Filtrar por nombre o SKU del laboratorio móvil (búsqueda parcial)',
@@ -65,5 +45,4 @@ export class MobileLabPaginationFilterDto extends IncludesMobileLabDto {
 	@IsString( { each : true } )
 	categories?: string[];
 
-	
 }
