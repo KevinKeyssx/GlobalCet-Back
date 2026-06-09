@@ -35,7 +35,7 @@ export class GlobalSearchesService {
 			createdAt   : true,
 			updatedAt   : true,
 			files       : {
-				where  : { isMain : true },
+				// where  : { isMain : true },
 				select : {
 					id             : true,
 					url            : true,
@@ -171,11 +171,11 @@ export class GlobalSearchesService {
 	async search( queryDto: GlobalSearchQueryDto ): Promise<IGlobalSearchResponse> {
 		try {
 			const {
-				query = '',
-				limitPerEntity = 10,
-				suggestion = true,
-				sortBy = GlobalSearchSortBy.CREATED_AT,
-				sortOrder = GlobalSearchSortOrder.ASC,
+				query           = '',
+				limitPerEntity  = 10,
+				suggestion      = true,
+				orderBy         = GlobalSearchSortBy.CREATED_AT,
+				order           = GlobalSearchSortOrder.ASC,
 			} = queryDto;
 
 			const cleanQuery = ( query ?? '' ).trim();
@@ -203,21 +203,21 @@ export class GlobalSearchesService {
 						where   : { active : true },
 						take    : limitPerEntity,
 						select  : this.#getProductSelect(),
-						orderBy : { [ sortBy ] : sortOrder },
+						orderBy : { [ orderBy ] : order },
 					} ),
 					this.prisma.kit.count({ where : { active : true }}),
 					this.prisma.kit.findMany({
 						where   : { active : true },
 						take    : limitPerEntity,
 						select  : this.#getKitSelect(),
-						orderBy : { [ sortBy ] : sortOrder },
+						orderBy : { [ orderBy ] : order },
 					}),
 					this.prisma.mobileLab.count({ where : { active : true }}),
 					this.prisma.mobileLab.findMany({
 						where   : { active : true },
 						take    : limitPerEntity,
 						select  : this.#getMobileLabSelect(),
-						orderBy : {[ sortBy ] : sortOrder },
+						orderBy : {[ orderBy ] : order },
 					}),
 				]);
 
@@ -260,21 +260,21 @@ export class GlobalSearchesService {
 							where   : whereProduct,
 							take    : limitPerEntity,
 							select  : this.#getProductSelect(),
-							orderBy : { [ sortBy ] : sortOrder },
+							orderBy : { [ orderBy ] : order },
 						} ),
 						this.prisma.kit.count( { where : whereKit } ),
 						this.prisma.kit.findMany( {
 							where   : whereKit,
 							take    : limitPerEntity,
 							select  : this.#getKitSelect(),
-							orderBy : { [ sortBy ] : sortOrder },
+							orderBy : { [ orderBy ] : order },
 						} ),
 						this.prisma.mobileLab.count( { where : whereMobileLab } ),
 						this.prisma.mobileLab.findMany( {
 							where   : whereMobileLab,
 							take    : limitPerEntity,
 							select  : this.#getMobileLabSelect(),
-							orderBy : { [ sortBy ] : sortOrder },
+							orderBy : { [ orderBy ] : order },
 						} ),
 					] );
 
@@ -318,21 +318,21 @@ export class GlobalSearchesService {
 							where   : whereProduct,
 							take    : limitPerEntity,
 							select  : this.#getProductSelect(),
-							orderBy : {[ sortBy ] : sortOrder },
+							orderBy : {[ orderBy ] : order },
 						}),
 						this.prisma.kit.count({ where : whereKit } ),
 						this.prisma.kit.findMany({
 							where   : whereKit,
 							take    : limitPerEntity,
 							select  : this.#getKitSelect(),
-							orderBy : {[ sortBy ] : sortOrder },
+							orderBy : {[ orderBy ] : order },
 						}),
 						this.prisma.mobileLab.count({ where : whereMobileLab }),
 						this.prisma.mobileLab.findMany({
 							where   : whereMobileLab,
 							take    : limitPerEntity,
 							select  : this.#getMobileLabSelect(),
-							orderBy : {[ sortBy ] : sortOrder },
+							orderBy : {[ orderBy ] : order },
 						}),
 					]);
 

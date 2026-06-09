@@ -7,6 +7,7 @@ import { UpdateCategoryDto }            from '@categories/dto/update-category.dt
 import { CategoryPaginationFilterDto }  from '@categories/dto/pagination-filter.dto';
 import { Category, Prisma }             from '@prisma/client';
 import { PaginatedResult }              from '@common/interfaces/paginated-result.interface';
+import { SubCategoryOrderField }        from '@common/dto/pagination.dto';
 
 
 @Injectable()
@@ -62,6 +63,8 @@ export class CategoriesService {
 				name,
 				active,
 				includeSubcategories = false,
+				orderBy = SubCategoryOrderField.NAME,
+				order = 'asc',
 			} = filterDto;
 
 			const skip = ( page - 1 ) * size;
@@ -81,7 +84,7 @@ export class CategoriesService {
 						subCategories : includeSubcategories,
 					},
 					orderBy	: {
-						createdAt	: 'desc',
+						[ orderBy ] : order,
 					},
 				}),
 			]);
