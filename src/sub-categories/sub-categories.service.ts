@@ -6,11 +6,9 @@ import { CreateSubCategoryDto }         from '@sub-categories/dto/create-sub-cat
 import { UpdateSubCategoryDto }         from '@sub-categories/dto/update-sub-category.dto';
 import { Subcategory, Prisma }          from '@prisma/client';
 import { PaginatedResult }              from '@common/interfaces/paginated-result.interface';
-import {
-	SubCategoryPaginationFilterDto,
-	SubCategoryOrderField,
-	OrderType
-}                                       from '@sub-categories/dto/pagination-filter.dto';
+import { SubCategoryPaginationFilterDto } from '@sub-categories/dto/pagination-filter.dto';
+import { SubCategoryOrderField }        from '@common/dto/pagination.dto';
+
 
 
 @Injectable()
@@ -50,8 +48,8 @@ export class SubCategoriesService {
 				active,
 				categoryIds,
 				includeCategory = false,
-				order = SubCategoryOrderField.NAME,
-				typeOrder = OrderType.ASC,
+				orderBy = SubCategoryOrderField.NAME,
+				order = 'asc',
 			} = filterDto;
 
 			const skip = ( page - 1 ) * size;
@@ -72,7 +70,7 @@ export class SubCategoriesService {
 						category : includeCategory,
 					},
 					orderBy : {
-						[ order ] : typeOrder,
+						[ orderBy ] : order,
 					},
 				} ),
 			] );

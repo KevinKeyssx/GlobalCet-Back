@@ -7,6 +7,8 @@ import { PaginatedResult }              from '@common/interfaces/paginated-resul
 import { CategoryPaginationFilterDto }  from '@common/dto/category-pagination-filter.dto';
 import { CreateLabCategoryDto }         from './dto/create-lab-category.dto';
 import { UpdateLabCategoryDto }         from './dto/update-lab-category.dto';
+import { SubCategoryOrderField }        from '@common/dto/pagination.dto';
+
 
 
 @Injectable()
@@ -61,6 +63,8 @@ export class LabCategoriesService {
 				size = 10,
 				name,
 				active,
+				orderBy = SubCategoryOrderField.NAME,
+				order = 'asc',
 			} = filterDto;
 
 			const skip = ( page - 1 ) * size;
@@ -76,7 +80,7 @@ export class LabCategoriesService {
 					where,
 					skip,
 					take    : size,
-					orderBy : { name : 'asc' },
+					orderBy : { [ orderBy ] : order },
 				} ),
 			] );
 

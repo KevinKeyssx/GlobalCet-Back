@@ -33,6 +33,8 @@ import { DeleteMobileLabFilesDto }      from '@mobile-labs/dto/delete-mobile-lab
 import { DeleteMobileLabRelationsDto }  from '@mobile-labs/dto/delete-mobile-lab-relations.dto';
 import { MobileLabPaginationFilterDto } from '@mobile-labs/dto/pagination-filter.dto';
 import { IncludesMobileLabDto }         from '@mobile-labs/dto/includes.dto';
+import { SubCategoryOrderField }        from '@common/dto/pagination.dto';
+
 
 
 @Injectable()
@@ -248,6 +250,8 @@ export class MobileLabsService {
 				includeFiles    = false,
 				includeProducts = false,
 				includeKits     = false,
+				orderBy         = SubCategoryOrderField.NAME,
+				order           = 'asc',
 			} = filterDto;
 
 			const skip = ( page - 1 ) * size;
@@ -287,7 +291,7 @@ export class MobileLabsService {
 					skip,
 					take    : size,
 					select  : this.#getMobileLabSelect( includeFiles, includeProducts, includeKits ),
-					orderBy : { createdAt : 'desc' },
+					orderBy : { [ orderBy ] : order },
 				} ) as unknown as IMobileLab[],
 			] );
 

@@ -25,6 +25,7 @@ import { KitProductDto }            from '@kits/dto/kit-product.dto';
 import { DeleteKitProductsDto }     from '@kits/dto/delete-kit-products.dto';
 import { KitPaginationFilterDto }   from '@kits/dto/pagination-filter.dto';
 import { IncludesKitDto }           from '@kits/dto/includes.dto';
+import { SubCategoryOrderField }    from '@common/dto/pagination.dto';
 
 
 @Injectable()
@@ -200,6 +201,8 @@ export class KitsService {
 				categories,
 				includeFiles = false,
 				includeProducts = false,
+				orderBy = SubCategoryOrderField.NAME,
+				order = 'asc',
 			} = filterDto;
 
 			const skip = ( page - 1 ) * size;
@@ -239,7 +242,7 @@ export class KitsService {
 					skip,
 					take    : size,
 					select  : this.#getKitSelect( includeFiles, includeProducts ),
-					orderBy : { createdAt : 'desc' },
+					orderBy : { [ orderBy ] : order },
 				} ) as unknown as IKit[],
 			] );
 

@@ -7,6 +7,8 @@ import { PaginatedResult }              from '@common/interfaces/paginated-resul
 import { CategoryPaginationFilterDto }  from '@common/dto/category-pagination-filter.dto';
 import { CreateKitCategoryDto }         from './dto/create-kit-category.dto';
 import { UpdateKitCategoryDto }         from './dto/update-kit-category.dto';
+import { SubCategoryOrderField }        from '@common/dto/pagination.dto';
+
 
 
 @Injectable()
@@ -61,6 +63,8 @@ export class KitCategoriesService {
 				size = 10,
 				name,
 				active,
+				orderBy = SubCategoryOrderField.NAME,
+				order = 'asc',
 			} = filterDto;
 
 			const skip = ( page - 1 ) * size;
@@ -76,7 +80,7 @@ export class KitCategoriesService {
 					where,
 					skip,
 					take    : size,
-					orderBy : { name : 'asc' },
+					orderBy : { [ orderBy ] : order },
 				} ),
 			] );
 

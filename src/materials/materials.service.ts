@@ -7,6 +7,8 @@ import { CreateMaterialDto } from './dto/create-material.dto';
 import { UpdateMaterialDto } from './dto/update-material.dto';
 import { MaterialPaginationFilterDto } from './dto/pagination-filter.dto';
 import { PaginatedResult } from '@common/interfaces/paginated-result.interface';
+import { SubCategoryOrderField } from '@common/dto/pagination.dto';
+
 
 
 @Injectable()
@@ -92,9 +94,7 @@ export class MaterialsService {
 	}
 
 
-	async findAllPaginated(
-        filterDto: MaterialPaginationFilterDto
-    ): Promise<PaginatedResult<Material>> {
+	async findAllPaginated( filterDto: MaterialPaginationFilterDto ): Promise<PaginatedResult<Material>> {
 		try {
 			const {
 				page = 1,
@@ -102,6 +102,8 @@ export class MaterialsService {
 				name,
 				autoclavable,
 				active,
+				orderBy = SubCategoryOrderField.NAME,
+				order = 'asc',
 			} = filterDto;
 
 			const skip = ( page - 1 ) * size;
@@ -119,7 +121,7 @@ export class MaterialsService {
 					skip,
 					take	: size,
 					orderBy	: {
-						createdAt	: 'desc',
+						[ orderBy ] : order,
 					},
 				}),
 			]);
