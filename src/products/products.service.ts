@@ -23,6 +23,8 @@ import { UpdateProductImagesDto }       from '@products/dto/update-product-image
 import { UploadProductImagesDto }       from '@products/dto/upload-product-images.dto';
 import { DeleteProductFilesDto }       from '@products/dto/delete-product-files.dto';
 import { IncludesItemsDto }             from '@products/dto/includes-items.dto';
+import { SubCategoryOrderField }        from '@common/dto/pagination.dto';
+
 
 
 @Injectable()
@@ -38,7 +40,7 @@ export class ProductsService {
 
 
 	#getProductSelect(
-        includeImages       : boolean = false,
+        includeFiles       : boolean = false,
         includeKits         : boolean = false,
         includeMobileLabs   : boolean = false
     ) {
@@ -59,7 +61,7 @@ export class ProductsService {
                 }
             },
 			files           : {
-				where  : includeImages ? {} : { isMain: true },
+				where  : includeFiles ? {} : { isMain: true },
 				select : {
 					id              : true,
 					url             : true,
@@ -111,7 +113,7 @@ export class ProductsService {
         files?: Express.Multer.File[],
     ): Promise<IProduct> {
         const {
-            includeImages,
+            includeFiles,
             includeKits,
             includeMobileLabs,
             imagesInfo,
@@ -182,7 +184,7 @@ export class ProductsService {
                         }
                     }),
 				},
-				select : this.#getProductSelect( includeImages, includeKits, includeMobileLabs ),
+				select : this.#getProductSelect( includeFiles, includeKits, includeMobileLabs ),
 			}) as unknown as IProduct;
 		} catch ( error ) {
             if ( uploadedImages.length > 0 ) {
@@ -207,9 +209,11 @@ export class ProductsService {
 				materials,
 				active,
 				subcategories,
-				includeImages,
+				includeFiles,
 				includeKits,
 				includeMobileLabs,
+				orderBy = SubCategoryOrderField.NAME,
+				order = 'asc',
 			} = filterDto;
 
 			const skip = ( page - 1 ) * size;
@@ -249,9 +253,9 @@ export class ProductsService {
 					where,
 					skip,
 					take    : size,
-					select  : this.#getProductSelect( includeImages, includeKits, includeMobileLabs ),
+					select  : this.#getProductSelect( includeFiles, includeKits, includeMobileLabs ),
 					orderBy : {
-						createdAt : 'desc',
+						[ orderBy ] : order,
 					},
 				}) as unknown as IProduct[],
 			]);
@@ -313,11 +317,11 @@ export class ProductsService {
 
 	async findOne( id: string, includesItemsDto: IncludesItemsDto ): Promise<IProduct> {
 		try {
-			const { includeImages, includeKits, includeMobileLabs } = includesItemsDto;
+			const { includeFiles, includeKits, includeMobileLabs } = includesItemsDto;
 
 			return await this.prisma.product.findUniqueOrThrow({
 				where  : { id },
-				select : this.#getProductSelect( includeImages, includeKits, includeMobileLabs ),
+				select : this.#getProductSelect( includeFiles, includeKits, includeMobileLabs ),
 			}) as unknown as IProduct;
 		} catch ( error ) {
 			throw PrismaException.catch( error );
@@ -328,7 +332,7 @@ export class ProductsService {
 	async update( id: string, updateProductDto: UpdateProductDto ): Promise<IProduct> {
 		try {
             const {
-                includeImages,
+                includeFiles,
                 includeKits,
                 includeMobileLabs,
                 files,
@@ -338,7 +342,7 @@ export class ProductsService {
 			return await this.prisma.product.update({
 				where : { id },
 				data,
-				select : this.#getProductSelect( includeImages, includeKits, includeMobileLabs ),
+				select : this.#getProductSelect( includeFiles, includeKits, includeMobileLabs ),
 			}) as unknown as IProduct;
 		} catch ( error ) {
 			throw PrismaException.catch( error );
@@ -551,7 +555,7 @@ export class ProductsService {
                 )
             );
 
-            return await this.findOne( productId, { includeImages : true });
+            return await this.findOne( productId, { includeFiles : true });
         } catch ( error ) {
             throw PrismaException.catch( error );
         }
