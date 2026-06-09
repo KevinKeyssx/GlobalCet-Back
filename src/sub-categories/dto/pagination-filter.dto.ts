@@ -12,12 +12,6 @@ import { Transform }    from 'class-transformer';
 import { PaginationDto } from '@common/dto/pagination.dto';
 
 
-export enum SubCategoryOrderField {
-	NAME       = 'name',
-	CREATED_AT = 'createdAt',
-	UPDATED_AT = 'updatedAt',
-}
-
 export enum OrderType {
 	ASC  = 'asc',
 	DESC = 'desc',
@@ -70,24 +64,5 @@ export class SubCategoryPaginationFilterDto extends PaginationDto {
 	@Transform( ( { value } ) => ( value === 'true' || value === true ) )
 	includeCategory?: boolean;
 
-
-	@ApiPropertyOptional( {
-		description	: 'Field to order by',
-		enum		: SubCategoryOrderField,
-		default		: SubCategoryOrderField.NAME,
-	} )
-	@IsOptional()
-	@IsEnum( SubCategoryOrderField )
-	order?: SubCategoryOrderField = SubCategoryOrderField.NAME;
-
-
-	@ApiPropertyOptional( {
-		description	: 'Order type direction',
-		enum		: OrderType,
-		default		: OrderType.ASC,
-	} )
-	@IsOptional()
-	@IsEnum( OrderType )
-	typeOrder?: OrderType = OrderType.ASC;
-
 }
+
