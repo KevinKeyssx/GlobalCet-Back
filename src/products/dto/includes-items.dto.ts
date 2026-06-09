@@ -10,12 +10,12 @@ import { Transform }    from 'class-transformer';
 export class IncludesItemsDto {
 
     @ApiPropertyOptional({
-        description: 'Incluir imágenes asociadas'
+        description: 'Incluir archivos asociados'
     })
 	@IsOptional()
 	@IsBoolean()
 	@Transform( ({ value }) => value === 'true' || value === true )
-	includeImages?: boolean = false;
+	includeFiles?: boolean = false;
 
 	@ApiPropertyOptional({
         description: 'Incluir kits asociados'
