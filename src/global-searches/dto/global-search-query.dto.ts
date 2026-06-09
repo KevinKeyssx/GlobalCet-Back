@@ -67,7 +67,7 @@ export class GlobalSearchQueryDto {
 	} )
 	@IsOptional()
 	@IsEnum( GlobalSearchSortBy )
-	sortBy? : GlobalSearchSortBy = GlobalSearchSortBy.CREATED_AT;
+	orderBy? : GlobalSearchSortBy = GlobalSearchSortBy.CREATED_AT;
 
 	@ApiPropertyOptional( {
 		description : 'Orden de clasificación',
@@ -77,6 +77,6 @@ export class GlobalSearchQueryDto {
 	} )
 	@IsOptional()
 	@IsEnum( GlobalSearchSortOrder )
-	sortOrder? : GlobalSearchSortOrder = GlobalSearchSortOrder.ASC;
+	order? : GlobalSearchSortOrder = GlobalSearchSortOrder.ASC;
 
 }
