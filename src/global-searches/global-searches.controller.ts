@@ -10,8 +10,7 @@ import {
 import { GlobalSearchesService }             from './global-searches.service';
 import {
 	GlobalSearchQueryDto,
-	GlobalSearchSortBy,
-	GlobalSearchSortOrder
+	GlobalSearchFilterType
 }                                            from './dto/global-search-query.dto';
 import { IGlobalSearchResponse }             from './interfaces/global-search-result.interface';
 import { SecretGuard }                       from '@common/guards/secret.guard';
@@ -44,13 +43,6 @@ export class GlobalSearchesController {
 		example     : 'Silla',
 	} )
 	@ApiQuery( {
-		name        : 'limitPerEntity',
-		description : 'Número de resultados por entidad',
-		required    : false,
-		type        : 'number',
-		example     : 10,
-	} )
-	@ApiQuery( {
 		name        : 'suggestion',
 		description : 'Indica si se debe sugerir la búsqueda',
 		required    : false,
@@ -58,18 +50,59 @@ export class GlobalSearchesController {
 		example     : false,
 	} )
 	@ApiQuery( {
-		name        : 'sortBy',
-		description : 'Campo por el cual ordenar los resultados',
+		name        : 'page',
+		description : 'Número de página',
 		required    : false,
-		enum        : GlobalSearchSortBy,
-		example     : GlobalSearchSortBy.CREATED_AT,
+		type        : 'number',
+		example     : 1,
 	} )
 	@ApiQuery( {
-		name        : 'sortOrder',
+		name        : 'size',
+		description : 'Elementos por página',
+		required    : false,
+		type        : 'number',
+		example     : 10,
+	} )
+	@ApiQuery( {
+		name        : 'order',
 		description : 'Orden de clasificación (asc o desc)',
 		required    : false,
-		enum        : GlobalSearchSortOrder,
-		example     : GlobalSearchSortOrder.ASC,
+		type        : 'string',
+		example     : 'asc',
+	} )
+	@ApiQuery( {
+		name        : 'orderBy',
+		description : 'Campo por el cual ordenar los resultados',
+		required    : false,
+		type        : 'string',
+		example     : 'name',
+	} )
+	@ApiQuery( {
+		name        : 'filter',
+		description : 'Filtrar por entidad específica',
+		required    : false,
+		enum        : GlobalSearchFilterType,
+	} )
+	@ApiQuery( {
+		name        : 'categories',
+		description : 'Filtrar por IDs de categorías separados por comas',
+		required    : false,
+		type        : 'string',
+		example     : 'id1,id2',
+	} )
+	@ApiQuery( {
+		name        : 'subcategories',
+		description : 'Filtrar por IDs de subcategorías separados por comas',
+		required    : false,
+		type        : 'string',
+		example     : 'id1,id2',
+	} )
+	@ApiQuery( {
+		name        : 'materialIds',
+		description : 'Filtrar por IDs de materiales separados por comas',
+		required    : false,
+		type        : 'string',
+		example     : 'id1,id2',
 	} )
 	search(
 		@Query() queryDto: GlobalSearchQueryDto
@@ -78,3 +111,4 @@ export class GlobalSearchesController {
 	}
 
 }
+
