@@ -5,8 +5,7 @@ import { PrismaService }    from '@prisma/prisma.service';
 import { Prisma }           from '@prisma/client';
 import {
 	GlobalSearchQueryDto,
-	GlobalSearchSortBy,
-	GlobalSearchSortOrder
+	GlobalSearchFilterType
 } from '@global-searches/dto/global-search-query.dto';
 import {
 	IGlobalKit,
@@ -171,14 +170,24 @@ export class GlobalSearchesService {
 	async search( queryDto: GlobalSearchQueryDto ): Promise<IGlobalSearchResponse> {
 		try {
 			const {
-				query           = '',
-				limitPerEntity  = 10,
-				suggestion      = true,
-				orderBy         = GlobalSearchSortBy.CREATED_AT,
-				order           = GlobalSearchSortOrder.ASC,
+				query         = '',
+				suggestion    = true,
+				page          = 1,
+				size          = 10,
+				order         = 'asc',
+				orderBy       = 'name',
+				filter,
+				categories    = [],
+				subcategories = [],
+				materialIds   = [],
 			} = queryDto;
 
 			const cleanQuery = ( query ?? '' ).trim();
+			const skip       = ( page - 1 ) * size;
+			const take       = size;
+
+			// Mapear los campos de ordenamiento por defecto
+			const prismaOrder = { [ orderBy ] : order };
 
 			let products   : IGlobalProduct[]   = [];
 			let kits       : IGlobalKit[]       = [];
@@ -189,212 +198,304 @@ export class GlobalSearchesService {
 			let totalMobileLabs = 0;
 			let isSuggestion    = false;
 
+			// Determinar qué entidades buscar según el filtro y las reglas de negocio
+			let shouldSearchProducts   = true;
+			let shouldSearchKits       = true;
+			let shouldSearchMobileLabs = true;
+
+			if ( filter ) {
+				shouldSearchProducts   = filter === GlobalSearchFilterType.PRODUCTS;
+				shouldSearchKits       = filter === GlobalSearchFilterType.KITS;
+				shouldSearchMobileLabs = filter === GlobalSearchFilterType.MOBILE_LABS;
+			}
+
+			// Reglas de negocio sobreescribiendo prioridades:
+			// "cuando viene un subcategory la prop filter siempre debe venir como products" -> si vienen subcategories o materialIds, solo buscamos productos
+			if ( subcategories.length > 0 || materialIds.length > 0 ) {
+				shouldSearchProducts   = true;
+				shouldSearchKits       = false;
+				shouldSearchMobileLabs = false;
+			}
+
+			// "cuando vengan categories la prop filter siempre puede ser kits o mobileLabs" -> si vienen categories (y no subcategories/materialIds), excluimos productos si no se forzó products
+			if ( categories.length > 0 && subcategories.length === 0 && materialIds.length === 0 ) {
+				if ( !filter || filter !== GlobalSearchFilterType.PRODUCTS ) {
+					shouldSearchProducts = false;
+				}
+			}
+
+			// Construcción de filtros base WHERE para cada entidad
+			const whereProductBase : Prisma.ProductWhereInput = {
+				active : true,
+				...( subcategories.length > 0 && { subcategoryId : { in : subcategories } } ),
+				...( materialIds.length > 0 && { materialId : { in : materialIds } } ),
+			};
+
+			const whereKitBase : Prisma.KitWhereInput = {
+				active : true,
+				...( categories.length > 0 && { categoryId : { in : categories } } ),
+			};
+
+			const whereMobileLabBase : Prisma.MobileLabWhereInput = {
+				active : true,
+				...( categories.length > 0 && { categoryId : { in : categories } } ),
+			};
+
 			if ( !cleanQuery ) {
-				const [
-					prodCount,
-					prodData,
-					kitCount,
-					kitData,
-					labCount,
-					labData,
-				] = await Promise.all( [
-					this.prisma.product.count({ where : { active : true }}),
-					this.prisma.product.findMany({
-						where   : { active : true },
-						take    : limitPerEntity,
-						select  : this.#getProductSelect(),
-						orderBy : { [ orderBy ] : order },
-					} ),
-					this.prisma.kit.count({ where : { active : true }}),
-					this.prisma.kit.findMany({
-						where   : { active : true },
-						take    : limitPerEntity,
-						select  : this.#getKitSelect(),
-						orderBy : { [ orderBy ] : order },
-					}),
-					this.prisma.mobileLab.count({ where : { active : true }}),
-					this.prisma.mobileLab.findMany({
-						where   : { active : true },
-						take    : limitPerEntity,
-						select  : this.#getMobileLabSelect(),
-						orderBy : {[ orderBy ] : order },
-					}),
-				]);
+				// Buscar sin texto de consulta (solo filtros de listas e ID y paginación)
+				const promises : Promise<any>[] = [];
 
-				products   = prodData as unknown as IGlobalProduct[];
-				kits       = kitData as unknown as IGlobalKit[];
-				mobileLabs = labData as unknown as IGlobalMobileLab[];
+				if ( shouldSearchProducts ) {
+					promises.push(
+						this.prisma.product.count( { where : whereProductBase } ),
+						this.prisma.product.findMany( {
+							where   : whereProductBase,
+							skip,
+							take,
+							select  : this.#getProductSelect(),
+							orderBy : prismaOrder,
+						} )
+					);
+				}
 
-				totalProducts   = prodCount;
-				totalKits       = kitCount;
-				totalMobileLabs = labCount;
+				if ( shouldSearchKits ) {
+					promises.push(
+						this.prisma.kit.count( { where : whereKitBase } ),
+						this.prisma.kit.findMany( {
+							where   : whereKitBase,
+							skip,
+							take,
+							select  : this.#getKitSelect(),
+							orderBy : prismaOrder,
+						} )
+					);
+				}
+
+				if ( shouldSearchMobileLabs ) {
+					promises.push(
+						this.prisma.mobileLab.count( { where : whereMobileLabBase } ),
+						this.prisma.mobileLab.findMany( {
+							where   : whereMobileLabBase,
+							skip,
+							take,
+							select  : this.#getMobileLabSelect(),
+							orderBy : prismaOrder,
+						} )
+					);
+				}
+
+				const results = await Promise.all( promises );
+				let resultIdx = 0;
+
+				if ( shouldSearchProducts ) {
+					totalProducts = results[ resultIdx++ ];
+					products      = results[ resultIdx++ ] as unknown as IGlobalProduct[];
+				}
+				if ( shouldSearchKits ) {
+					totalKits = results[ resultIdx++ ];
+					kits      = results[ resultIdx++ ] as unknown as IGlobalKit[];
+				}
+				if ( shouldSearchMobileLabs ) {
+					totalMobileLabs = results[ resultIdx++ ];
+					mobileLabs      = results[ resultIdx++ ] as unknown as IGlobalMobileLab[];
+				}
 			} else {
+				// Búsqueda inteligente con texto
 				const isSkuQuery = cleanQuery.toUpperCase().startsWith( this.SKU_PREFIX );
 
+				// Definir filtros de coincidencia de texto
+				const buildProductWhere = ( isSku : boolean ): Prisma.ProductWhereInput => ( {
+					...whereProductBase,
+					OR : isSku
+						? [ { sku : { contains : cleanQuery, mode : 'insensitive' } } ]
+						: [
+								{ name : { contains : cleanQuery, mode : 'insensitive' } },
+								{ subcategory : { name : { contains : cleanQuery, mode : 'insensitive' } } },
+								{ subcategory : { category : { name : { contains : cleanQuery, mode : 'insensitive' } } } },
+								{ material : { name : { contains : cleanQuery, mode : 'insensitive' } } },
+							],
+				} );
+
+				const buildKitWhere = ( isSku : boolean ): Prisma.KitWhereInput => ( {
+					...whereKitBase,
+					OR : isSku
+						? [ { sku : { contains : cleanQuery, mode : 'insensitive' } } ]
+						: [
+								{ name : { contains : cleanQuery, mode : 'insensitive' } },
+								{ category : { name : { contains : cleanQuery, mode : 'insensitive' } } },
+							],
+				} );
+
+				const buildMobileLabWhere = ( isSku : boolean ): Prisma.MobileLabWhereInput => ( {
+					...whereMobileLabBase,
+					OR : isSku
+						? [ { sku : { contains : cleanQuery, mode : 'insensitive' } } ]
+						: [
+								{ name : { contains : cleanQuery, mode : 'insensitive' } },
+								{ category : { name : { contains : cleanQuery, mode : 'insensitive' } } },
+							],
+				} );
+
+				const executeSearch = async ( isSku : boolean ) => {
+					const promises : Promise<any>[] = [];
+
+					if ( shouldSearchProducts ) {
+						const where = buildProductWhere( isSku );
+						promises.push(
+							this.prisma.product.count( { where } ),
+							this.prisma.product.findMany( {
+								where,
+								skip,
+								take,
+								select  : this.#getProductSelect(),
+								orderBy : prismaOrder,
+							} )
+						);
+					}
+
+					if ( shouldSearchKits ) {
+						const where = buildKitWhere( isSku );
+						promises.push(
+							this.prisma.kit.count( { where } ),
+							this.prisma.kit.findMany( {
+								where,
+								skip,
+								take,
+								select  : this.#getKitSelect(),
+								orderBy : prismaOrder,
+							} )
+						);
+					}
+
+					if ( shouldSearchMobileLabs ) {
+						const where = buildMobileLabWhere( isSku );
+						promises.push(
+							this.prisma.mobileLab.count( { where } ),
+							this.prisma.mobileLab.findMany( {
+								where,
+								skip,
+								take,
+								select  : this.#getMobileLabSelect(),
+								orderBy : prismaOrder,
+							} )
+						);
+					}
+
+					const results = await Promise.all( promises );
+					let resultIdx = 0;
+
+					if ( shouldSearchProducts ) {
+						totalProducts = results[ resultIdx++ ];
+						products      = results[ resultIdx++ ] as unknown as IGlobalProduct[];
+					} else {
+						totalProducts = 0;
+						products      = [];
+					}
+
+					if ( shouldSearchKits ) {
+						totalKits = results[ resultIdx++ ];
+						kits      = results[ resultIdx++ ] as unknown as IGlobalKit[];
+					} else {
+						totalKits = 0;
+						kits      = [];
+					}
+
+					if ( shouldSearchMobileLabs ) {
+						totalMobileLabs = results[ resultIdx++ ];
+						mobileLabs      = results[ resultIdx++ ] as unknown as IGlobalMobileLab[];
+					} else {
+						totalMobileLabs = 0;
+						mobileLabs      = [];
+					}
+				};
+
 				if ( isSkuQuery ) {
-					const whereProduct : Prisma.ProductWhereInput = {
-						sku    : { contains : cleanQuery, mode : 'insensitive' },
-						active : true,
-					};
-
-					const whereKit : Prisma.KitWhereInput = {
-						sku    : { contains : cleanQuery, mode : 'insensitive' },
-						active : true,
-					};
-
-					const whereMobileLab : Prisma.MobileLabWhereInput = {
-						sku    : { contains : cleanQuery, mode : 'insensitive' },
-						active : true,
-					};
-
-					const [
-						prodCount,
-						prodData,
-						kitCount,
-						kitData,
-						labCount,
-						labData,
-					] = await Promise.all( [
-						this.prisma.product.count( { where : whereProduct } ),
-						this.prisma.product.findMany( {
-							where   : whereProduct,
-							take    : limitPerEntity,
-							select  : this.#getProductSelect(),
-							orderBy : { [ orderBy ] : order },
-						} ),
-						this.prisma.kit.count( { where : whereKit } ),
-						this.prisma.kit.findMany( {
-							where   : whereKit,
-							take    : limitPerEntity,
-							select  : this.#getKitSelect(),
-							orderBy : { [ orderBy ] : order },
-						} ),
-						this.prisma.mobileLab.count( { where : whereMobileLab } ),
-						this.prisma.mobileLab.findMany( {
-							where   : whereMobileLab,
-							take    : limitPerEntity,
-							select  : this.#getMobileLabSelect(),
-							orderBy : { [ orderBy ] : order },
-						} ),
-					] );
-
-					products   = prodData as unknown as IGlobalProduct[];
-					kits       = kitData as unknown as IGlobalKit[];
-					mobileLabs = labData as unknown as IGlobalMobileLab[];
-
-					totalProducts   = prodCount;
-					totalKits       = kitCount;
-					totalMobileLabs = labCount;
+					await executeSearch( true );
 				}
 
 				const hasNoResults = products.length === 0 && kits.length === 0 && mobileLabs.length === 0;
 
 				if ( !isSkuQuery || hasNoResults ) {
-					const whereProduct : Prisma.ProductWhereInput = {
-						name   : { contains : cleanQuery, mode : 'insensitive' },
-						active : true,
-					};
-
-					const whereKit : Prisma.KitWhereInput = {
-						name   : { contains : cleanQuery, mode : 'insensitive' },
-						active : true,
-					};
-
-					const whereMobileLab : Prisma.MobileLabWhereInput = {
-						name   : { contains : cleanQuery, mode : 'insensitive' },
-						active : true,
-					};
-
-					const [
-						prodCount,
-						prodData,
-						kitCount,
-						kitData,
-						labCount,
-						labData,
-					] = await Promise.all([
-						this.prisma.product.count({ where : whereProduct }),
-						this.prisma.product.findMany({
-							where   : whereProduct,
-							take    : limitPerEntity,
-							select  : this.#getProductSelect(),
-							orderBy : {[ orderBy ] : order },
-						}),
-						this.prisma.kit.count({ where : whereKit } ),
-						this.prisma.kit.findMany({
-							where   : whereKit,
-							take    : limitPerEntity,
-							select  : this.#getKitSelect(),
-							orderBy : {[ orderBy ] : order },
-						}),
-						this.prisma.mobileLab.count({ where : whereMobileLab }),
-						this.prisma.mobileLab.findMany({
-							where   : whereMobileLab,
-							take    : limitPerEntity,
-							select  : this.#getMobileLabSelect(),
-							orderBy : {[ orderBy ] : order },
-						}),
-					]);
-
-					products   = prodData as unknown    as IGlobalProduct[];
-					kits       = kitData as unknown     as IGlobalKit[];
-					mobileLabs = labData as unknown     as IGlobalMobileLab[];
-
-					totalProducts   = prodCount;
-					totalKits       = kitCount;
-					totalMobileLabs = labCount;
+					await executeSearch( false );
 				}
 			}
+
+			let suggestions : {
+				products   : IGlobalProduct[];
+				kits       : IGlobalKit[];
+				mobileLabs : IGlobalMobileLab[];
+			} | undefined = undefined;
 
 			const finalHasNoResults = products.length === 0 && kits.length === 0 && mobileLabs.length === 0;
 
 			if ( finalHasNoResults && suggestion ) {
 				isSuggestion = true;
+				suggestions  = {
+					products   : [],
+					kits       : [],
+					mobileLabs : [],
+				};
 
-				const [
-					prodData,
-					kitData,
-					labData,
-				] = await Promise.all( [
-					this.prisma.product.findMany( {
-						where   : { active : true },
-						take    : 5,
-						select  : this.#getProductSelect(),
-						orderBy : { createdAt : 'desc' },
-					} ),
-					this.prisma.kit.findMany( {
-						where   : { active : true },
-						take    : 5,
-						select  : this.#getKitSelect(),
-						orderBy : { createdAt : 'desc' },
-					} ),
-					this.prisma.mobileLab.findMany( {
-						where   : { active : true },
-						take    : 5,
-						select  : this.#getMobileLabSelect(),
-						orderBy : { createdAt : 'desc' },
-					} ),
-				] );
+				const promises : Promise< any >[] = [];
 
-				products   = prodData as unknown as IGlobalProduct[];
-				kits       = kitData as unknown as IGlobalKit[];
-				mobileLabs = labData as unknown as IGlobalMobileLab[];
+				if ( shouldSearchProducts ) {
+					promises.push(
+						this.prisma.product.findMany( {
+							where   : { active : true },
+							take    : 5,
+							select  : this.#getProductSelect(),
+							orderBy : { createdAt : 'desc' },
+						} )
+					);
+				}
 
-				totalProducts   = products.length;
-				totalKits       = kits.length;
-				totalMobileLabs = mobileLabs.length;
+				if ( shouldSearchKits ) {
+					promises.push(
+						this.prisma.kit.findMany( {
+							where   : { active : true },
+							take    : 5,
+							select  : this.#getKitSelect(),
+							orderBy : { createdAt : 'desc' },
+						} )
+					);
+				}
+
+				if ( shouldSearchMobileLabs ) {
+					promises.push(
+						this.prisma.mobileLab.findMany( {
+							where   : { active : true },
+							take    : 5,
+							select  : this.#getMobileLabSelect(),
+							orderBy : { createdAt : 'desc' },
+						} )
+					);
+				}
+
+				const results = await Promise.all( promises );
+				let resultIdx = 0;
+
+				if ( shouldSearchProducts ) {
+					suggestions.products = results[ resultIdx++ ] as unknown as IGlobalProduct[];
+				}
+				if ( shouldSearchKits ) {
+					suggestions.kits = results[ resultIdx++ ] as unknown as IGlobalKit[];
+				}
+				if ( shouldSearchMobileLabs ) {
+					suggestions.mobileLabs = results[ resultIdx++ ] as unknown as IGlobalMobileLab[];
+				}
 			}
 
 			return {
-				products   : products,
-				kits       : kits,
-				mobileLabs : mobileLabs,
+				products,
+				kits,
+				mobileLabs,
 				meta       : {
 					totalProducts,
 					totalKits,
 					totalMobileLabs,
 					isSuggestion,
 				},
+				...( suggestions && { suggestions } ),
 			};
 		} catch ( error ) {
 			throw PrismaException.catch( error );
