@@ -1,28 +1,24 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
+
 import {
 	IsOptional,
 	IsString,
-	IsInt,
-	Min,
 	IsBoolean,
-	IsEnum
-}                              from 'class-validator';
-import { Type, Transform }     from 'class-transformer';
-import { ApiPropertyOptional } from '@nestjs/swagger';
+	IsEnum,
+	IsArray
+}                                 from 'class-validator';
+import { Transform }              from 'class-transformer';
+import { PaginationDto }          from '@common/dto/pagination.dto';
 
 
-export enum GlobalSearchSortBy {
-	CREATED_AT = 'createdAt',
-	NAME       = 'name',
+export enum GlobalSearchFilterType {
+	PRODUCTS    = 'products',
+	KITS        = 'kits',
+	MOBILE_LABS = 'mobileLabs',
 }
 
 
-export enum GlobalSearchSortOrder {
-	ASC  = 'asc',
-	DESC = 'desc',
-}
-
-
-export class GlobalSearchQueryDto {
+export class GlobalSearchQueryDto extends PaginationDto {
 
 	@ApiPropertyOptional( {
 		description : 'Término de búsqueda',
@@ -34,20 +30,8 @@ export class GlobalSearchQueryDto {
 	@IsString()
 	query? : string;
 
-	@ApiPropertyOptional( {
-		description : 'Número de resultados por entidad',
-		required    : false,
-		type        : 'number',
-		example     : 10,
-		default     : 10,
-	} )
-	@IsOptional()
-	@Type( () => Number )
-	@IsInt()
-	@Min( 1 )
-	limitPerEntity? : number = 10;
 
-	@ApiPropertyOptional( {
+    @ApiPropertyOptional( {
 		description : 'Indica si se debe sugerir la búsqueda',
 		required    : false,
 		type        : 'boolean',
@@ -59,24 +43,51 @@ export class GlobalSearchQueryDto {
 	@IsBoolean()
 	suggestion? : boolean = true;
 
-	@ApiPropertyOptional( {
-		description : 'Campo por el cual ordenar los resultados',
-		required    : false,
-		enum        : GlobalSearchSortBy,
-		default     : GlobalSearchSortBy.CREATED_AT,
-	} )
-	@IsOptional()
-	@IsEnum( GlobalSearchSortBy )
-	orderBy? : GlobalSearchSortBy = GlobalSearchSortBy.CREATED_AT;
 
 	@ApiPropertyOptional( {
-		description : 'Orden de clasificación',
+		description : 'Filtro por tipo de entidad',
 		required    : false,
-		enum        : GlobalSearchSortOrder,
-		default     : GlobalSearchSortOrder.ASC,
+		enum        : GlobalSearchFilterType,
 	} )
 	@IsOptional()
-	@IsEnum( GlobalSearchSortOrder )
-	order? : GlobalSearchSortOrder = GlobalSearchSortOrder.ASC;
+	@IsEnum( GlobalSearchFilterType )
+	filter? : GlobalSearchFilterType;
+
+
+	@ApiPropertyOptional( {
+		description : 'Filtro por lista de IDs de categorías',
+		required    : false,
+		type        : [ String ],
+	} )
+	@IsOptional()
+	@Transform( ( { value } ) => Array.isArray( value ) ? value : typeof value === 'string' ? value.split( ',' ) : [] )
+	@IsArray()
+	@IsString( { each : true } )
+	categories? : string[];
+
+
+	@ApiPropertyOptional( {
+		description : 'Filtro por lista de IDs de subcategorías',
+		required    : false,
+		type        : [ String ],
+	} )
+	@IsOptional()
+	@Transform( ( { value } ) => Array.isArray( value ) ? value : typeof value === 'string' ? value.split( ',' ) : [] )
+	@IsArray()
+	@IsString( { each : true } )
+	subcategories? : string[];
+
+
+	@ApiPropertyOptional( {
+		description : 'Filtro por lista de IDs de materiales',
+		required    : false,
+		type        : [ String ],
+	} )
+	@IsOptional()
+	@Transform( ( { value } ) => Array.isArray( value ) ? value : typeof value === 'string' ? value.split( ',' ) : [] )
+	@IsArray()
+	@IsString( { each : true } )
+	materialIds? : string[];
 
 }
+
