@@ -75,8 +75,14 @@ export interface IGlobalSearchMeta {
 
 
 export interface IGlobalSearchResponse {
-	products   : IGlobalProduct[];
-	kits       : IGlobalKit[];
-	mobileLabs : IGlobalMobileLab[];
-	meta       : IGlobalSearchMeta;
+	products     : IGlobalProduct[];
+	kits         : IGlobalKit[];
+	mobileLabs   : IGlobalMobileLab[];
+	meta         : IGlobalSearchMeta;
+	suggestions? : {
+		products   : IGlobalProduct[];
+		kits       : IGlobalKit[];
+		mobileLabs : IGlobalMobileLab[];
+	};
 }
+
