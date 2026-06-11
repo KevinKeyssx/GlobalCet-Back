@@ -1,19 +1,22 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import {
-	ApiHeader,
+    ApiHeader,
 	ApiOperation,
 	ApiQuery,
 	ApiResponse,
 	ApiTags
 }                                            from '@nestjs/swagger';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 
-import { GlobalSearchesService }             from './global-searches.service';
 import {
-	GlobalSearchQueryDto,
+    GlobalSearchQueryDto,
 	GlobalSearchFilterType
-}                                            from './dto/global-search-query.dto';
-import { IGlobalSearchResponse }             from './interfaces/global-search-result.interface';
-import { SecretGuard }                       from '@common/guards/secret.guard';
+}                                   from './dto/global-search-query.dto';
+import {
+	IGlobalSearchResponse,
+	IGlobalSearchTotalsResponse
+}                                   from './interfaces/global-search-result.interface';
+import { SecretGuard }              from '@common/guards/secret.guard';
+import { GlobalSearchesService }    from './global-searches.service';
 
 
 @ApiTags( 'GlobalSearches' )
@@ -29,6 +32,15 @@ export class GlobalSearchesController {
 	constructor(
 		private readonly globalSearchesService: GlobalSearchesService
 	) {}
+
+
+	@Get( 'totals' )
+	@ApiOperation( { summary : 'Obtener la cantidad total de registros activos e inactivos del catálogo' } )
+	@ApiResponse( { status : 200, description : 'Totales devueltos de forma exitosa.' } )
+	@ApiResponse( { status : 401, description : 'No autorizado: Header x-secret inválido o ausente.' } )
+	getTotals(): Promise< IGlobalSearchTotalsResponse > {
+		return this.globalSearchesService.getTotals();
+	}
 
 
 	@Get()
