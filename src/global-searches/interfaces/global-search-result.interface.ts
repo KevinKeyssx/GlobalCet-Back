@@ -86,3 +86,29 @@ export interface IGlobalSearchResponse {
 	};
 }
 
+
+export interface IStatusTotal {
+	active   : number;
+	inactive : number;
+}
+
+
+export interface IBaseTotals {
+	catalog    : IStatusTotal;
+	categories : IStatusTotal;
+}
+
+
+export interface IProductTotals extends IBaseTotals {
+	subCategories : IStatusTotal;
+	materials     : IStatusTotal;
+}
+
+
+export interface IGlobalSearchTotalsResponse {
+	products   : IProductTotals;
+	kits       : IBaseTotals;
+	mobileLabs : IBaseTotals;
+}
+
+
