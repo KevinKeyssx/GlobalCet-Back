@@ -11,8 +11,10 @@ import {
 	IGlobalKit,
 	IGlobalMobileLab,
 	IGlobalProduct,
-	IGlobalSearchResponse
+	IGlobalSearchResponse,
+	IGlobalSearchTotalsResponse
 } from '@global-searches/interfaces/global-search-result.interface';
+
 
 
 @Injectable()
@@ -502,4 +504,65 @@ export class GlobalSearchesService {
 		}
 	}
 
+
+	async getTotals(): Promise< IGlobalSearchTotalsResponse > {
+		try {
+			const [
+				activeProducts,
+				inactiveProducts,
+				activeSubcategories,
+				inactiveSubcategories,
+				activeCategories,
+				inactiveCategories,
+				activeMaterials,
+				inactiveMaterials,
+				activeKits,
+				inactiveKits,
+				activeKitCategories,
+				inactiveKitCategories,
+				activeMobileLabs,
+				inactiveMobileLabs,
+				activeLabCategories,
+				inactiveLabCategories,
+			] = await Promise.all( [
+				this.prisma.product.count( { where : { active : true } } ),
+				this.prisma.product.count( { where : { active : false } } ),
+				this.prisma.subcategory.count( { where : { active : true } } ),
+				this.prisma.subcategory.count( { where : { active : false } } ),
+				this.prisma.category.count( { where : { active : true } } ),
+				this.prisma.category.count( { where : { active : false } } ),
+				this.prisma.material.count( { where : { active : true } } ),
+				this.prisma.material.count( { where : { active : false } } ),
+				this.prisma.kit.count( { where : { active : true } } ),
+				this.prisma.kit.count( { where : { active : false } } ),
+				this.prisma.kitCategory.count( { where : { active : true } } ),
+				this.prisma.kitCategory.count( { where : { active : false } } ),
+				this.prisma.mobileLab.count( { where : { active : true } } ),
+				this.prisma.mobileLab.count( { where : { active : false } } ),
+				this.prisma.labCategory.count( { where : { active : true } } ),
+				this.prisma.labCategory.count( { where : { active : false } } ),
+			] );
+
+			return {
+				products : {
+					catalog       : { active : activeProducts, inactive : inactiveProducts },
+					subCategories : { active : activeSubcategories, inactive : inactiveSubcategories },
+					categories    : { active : activeCategories, inactive : inactiveCategories },
+					materials     : { active : activeMaterials, inactive : inactiveMaterials },
+				},
+				kits : {
+					catalog    : { active : activeKits, inactive : inactiveKits },
+					categories : { active : activeKitCategories, inactive : inactiveKitCategories },
+				},
+				mobileLabs : {
+					catalog    : { active : activeMobileLabs, inactive : inactiveMobileLabs },
+					categories : { active : activeLabCategories, inactive : inactiveLabCategories },
+				},
+			};
+		} catch ( error ) {
+			throw PrismaException.catch( error );
+		}
+	}
+
 }
+
