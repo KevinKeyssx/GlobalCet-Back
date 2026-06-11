@@ -21,7 +21,7 @@ import { ENVS }         from '@config/envs';
     }))
     .enableCors({
         origin      : ENVS.ALLOWED_ORIGINS,
-        methods     : ['GET', 'POST', 'DELETE', 'OPTIONS'],
+        methods     : ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
         credentials : true,
     });
 
