@@ -4,8 +4,13 @@ import { ulid } from 'ulid';
 
 import {
     getFileNameWithExtension,
-    mapResourceTypeToAttachmentType
+    mapResourceTypeToAttachmentType,
+    matchFileByName
 }                                       from '@common/utils/file.utils';
+import {
+	normalizeText,
+	searchProductIds
+} from '@common/utils/search.utils';
 import {
     FileManagerService,
     ResponeFileUpload
@@ -21,9 +26,11 @@ import { ProductPaginationFilterDto }   from '@products/dto/pagination-filter.dt
 import { IProduct }                     from '@products/models/product.interface';
 import { UpdateProductImagesDto }       from '@products/dto/update-product-images.dto';
 import { UploadProductImagesDto }       from '@products/dto/upload-product-images.dto';
-import { DeleteProductFilesDto }       from '@products/dto/delete-product-files.dto';
+import { DeleteProductFilesDto }        from '@products/dto/delete-product-files.dto';
 import { IncludesItemsDto }             from '@products/dto/includes-items.dto';
 import { SubCategoryOrderField }        from '@common/dto/pagination.dto';
+import { getProductSelect }             from '@products/utils/product-select.utils';
+
 
 
 
@@ -37,77 +44,6 @@ export class ProductsService {
 		private readonly prisma: PrismaService,
         private readonly fileManagerService: FileManagerService,
 	) {}
-
-
-	#getProductSelect(
-        includeFiles       : boolean = false,
-        includeKits         : boolean = false,
-        includeMobileLabs   : boolean = false
-    ) {
-		return {
-			id              : true,
-			sku             : true,
-			name            : true,
-			description     : true,
-			material        : true,
-			technical_specs : true,
-			active          : true,
-			createdAt       : true,
-			updatedAt       : true,
-            subcategory     : {
-                select : {
-                    id : true,
-                    name: true
-                }
-            },
-			files           : {
-				where  : includeFiles ? {} : { isMain: true },
-				select : {
-					id              : true,
-					url             : true,
-					alt             : true,
-					isMain          : true,
-					order           : true,
-                    attachmentType  : true,
-				},
-			},
-			...( includeKits && {
-				inKits : {
-					select : {
-						id       : true,
-						quantity : true,
-						kit      : {
-							select : {
-								id          : true,
-								sku         : true,
-								name        : true,
-								description : true,
-							},
-						},
-					},
-				},
-			}),
-			...( includeMobileLabs && {
-				inMobileLabs : {
-					select : {
-						id        : true,
-						quantity  : true,
-						mobileLab : {
-							select : {
-								id          : true,
-								sku         : true,
-								name        : true,
-								description : true,
-								dimensions  : true,
-							},
-						},
-					},
-				},
-			}),
-		};
-	}
-
-
 	async create(
         createProductDto: CreateProductDto,
         files?: Express.Multer.File[],
@@ -184,18 +120,18 @@ export class ProductsService {
                         }
                     }),
 				},
-				select : this.#getProductSelect( includeFiles, includeKits, includeMobileLabs ),
+				select : getProductSelect( includeFiles, includeKits, includeMobileLabs ),
 			}) as unknown as IProduct;
 		} catch ( error ) {
             if ( uploadedImages.length > 0 ) {
                 try {
-                    await this.fileManagerService.deleteMultiple( productId );
+                    await this.fileManagerService.deleteFolder( 'products', productId );
                 } catch ( deleteError ) {
                     console.error( 'Error al eliminar los archivos del producto:', deleteError );
                 }
             }
 
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Product' );
 		}
 	}
 
@@ -225,24 +161,29 @@ export class ProductsService {
 			};
 
 			if ( query ) {
-				if ( query.toLowerCase().startsWith( this.SKU_PREFIX ) ) {
-					const skuWhere: Prisma.ProductWhereInput = {
-						...where,
-						sku : { contains : query, mode : 'insensitive' },
-					};
-					const count = await this.prisma.product.count( { where : skuWhere } );
-					if ( count > 0 ) {
-						where = skuWhere;
-					} else {
+				const normalized = normalizeText( query );
+				const pattern    = `%${ normalized }%`;
+
+				if ( query.toLowerCase( ).startsWith( this.SKU_PREFIX ) ) {
+					const skuIds = await searchProductIds( this.prisma, pattern, true );
+
+					if ( skuIds.length > 0 ) {
 						where = {
 							...where,
-							name : { contains : query, mode : 'insensitive' },
+							id : { in : skuIds },
+						};
+					} else {
+						const nameIds = await searchProductIds( this.prisma, pattern, false );
+						where = {
+							...where,
+							id : { in : nameIds },
 						};
 					}
 				} else {
+					const nameIds = await searchProductIds( this.prisma, pattern, false );
 					where = {
 						...where,
-						name : { contains : query, mode : 'insensitive' },
+						id : { in : nameIds },
 					};
 				}
 			}
@@ -253,7 +194,7 @@ export class ProductsService {
 					where,
 					skip,
 					take    : size,
-					select  : this.#getProductSelect( includeFiles, includeKits, includeMobileLabs ),
+					select  : getProductSelect( includeFiles, includeKits, includeMobileLabs ),
 					orderBy : {
 						[ orderBy ] : order,
 					},
@@ -271,7 +212,7 @@ export class ProductsService {
 			};
 
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Product' );
 		}
 	}
 
@@ -310,53 +251,75 @@ export class ProductsService {
 
 			return result;
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Product' );
 		}
 	}
 
 
-	async findOne( id: string, includesItemsDto: IncludesItemsDto ): Promise<IProduct> {
+	async findOne(
+        id: string,
+        includesItemsDto: IncludesItemsDto,
+        getAllStatus: boolean = false
+    ): Promise<IProduct> {
 		try {
 			const { includeFiles, includeKits, includeMobileLabs } = includesItemsDto;
 
-			return await this.prisma.product.findUniqueOrThrow({
-				where  : { id },
-				select : this.#getProductSelect( includeFiles, includeKits, includeMobileLabs ),
-			}) as unknown as IProduct;
+            const where : Prisma.ProductWhereInput = { id };
+
+            if ( !getAllStatus ) {
+                where.active = true;
+            }
+
+			return await this.prisma.product.findUniqueOrThrow( {
+				where  : where as any,
+				select : getProductSelect( includeFiles, includeKits, includeMobileLabs ),
+			} ) as unknown as IProduct;
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Product' );
 		}
 	}
 
 
 	async update( id: string, updateProductDto: UpdateProductDto ): Promise<IProduct> {
 		try {
-            const {
-                includeFiles,
-                includeKits,
-                includeMobileLabs,
-                files,
-                ...data
-            } = updateProductDto;
+			const {
+				includeFiles,
+				includeKits,
+				includeMobileLabs,
+				files,
+				...data
+			} = updateProductDto;
 
-			return await this.prisma.product.update({
-				where : { id },
+			return await this.prisma.product.update( {
+				where  : { id },
 				data,
-				select : this.#getProductSelect( includeFiles, includeKits, includeMobileLabs ),
-			}) as unknown as IProduct;
+				select : getProductSelect( includeFiles, includeKits, includeMobileLabs ),
+			} ) as unknown as IProduct;
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Product' );
 		}
 	}
 
 
 	async remove( id: string ): Promise<Product> {
 		try {
+            const productFiles = await this.prisma.productFile.findMany({
+                where : { productId : id },
+            })
+
+            if ( productFiles.length > 0 ) {
+                try {
+                    await this.fileManagerService.deleteFolder( 'products', id );
+                } catch ( error ) {
+                    console.error( 'Error al eliminar archivos de Cloudinary para el Producto:', error );
+                }
+            }
+
 			return await this.prisma.product.delete({
 				where : { id },
 			});
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Product' );
 		}
 	}
 
@@ -400,7 +363,7 @@ export class ProductsService {
 
             return { message : 'Archivo eliminado exitosamente' };
         } catch ( error ) {
-            throw PrismaException.catch( error );
+            throw PrismaException.catch( error, 'Product' );
         }
     }
 
@@ -445,9 +408,10 @@ export class ProductsService {
             let visualIndex     = 0;
 
             const filesCreate = uploadedImages.map( ( item, index ) => {
-                const type      = mapResourceTypeToAttachmentType( item.resource_type, item.secure_url );
-                const isVisual  = type === 'IMAGE' || type === 'VIDEOS';
-                const info      = imagesInfo?.[ index ];
+                const type         = mapResourceTypeToAttachmentType( item.resource_type, item.secure_url );
+                const isVisual     = type === 'IMAGE' || type === 'VIDEOS';
+                const originalName = files[ index ]?.originalname;
+                const info         = imagesInfo?.find( ( img ) => matchFileByName( item.secure_url, img.name || originalName || '' ) ) || imagesInfo?.[ index ];
 
                 let isMain                  = false;
                 let order: number | null    = null;
@@ -465,11 +429,11 @@ export class ProductsService {
                 }
 
                 return {
-                    url             : getFileNameWithExtension( item.secure_url ),
-                    alt             : info?.alt || null,
-                    attachmentType  : type,
-                    isMain,
-                    order,
+                    url				: getFileNameWithExtension( item.secure_url ),
+                    alt				: info?.alt || null,
+                    attachmentType	: type,
+                    isMain			: isMain,
+                    order			: order,
                 };
             });
 
@@ -480,11 +444,11 @@ export class ProductsService {
                         create : filesCreate,
                     },
                 },
-                select : this.#getProductSelect( true, false, false ),
+                select : getProductSelect( true, false, false ),
             }) as unknown as IProduct;
-        } catch ( error ) {
-            throw PrismaException.catch( error );
-        }
+		} catch ( error ) {
+			throw PrismaException.catch( error, 'Product' );
+		}
     }
 
 
@@ -511,36 +475,46 @@ export class ProductsService {
                 throw new BadRequestException( 'Una o más imágenes no pertenecen a este producto' );
             }
 
-            const normalizedInfo = imagesInfo.map( info => {
-                const currentImg = currentImages.find( img => img.id === info.id );
+            const normalizedInfo = imagesInfo.map( ( info ) => {
+                const currentImg = currentImages.find( ( img ) => img.id === info.id );
 
                 return {
-                    id		: info.id,
-                    alt		: info.alt !== undefined ? info.alt : currentImg?.alt,
-                    isMain	: info.isMain,
-                    order	: info.order !== undefined ? info.order : currentImg?.order,
+                    id				: info.id,
+                    alt				: info.alt !== undefined ? info.alt : currentImg?.alt,
+                    isMain			: info.isMain,
+                    order			: info.order !== undefined ? info.order : currentImg?.order,
+                    attachmentType	: info.attachmentType !== undefined ? info.attachmentType : currentImg?.attachmentType,
                 };
-            });
+            } );
 
             normalizedInfo.sort( ( a, b ) => ( a?.order || 0 ) - ( b?.order || 0 ) );
 
-            const hasMainTrue = normalizedInfo.some( info => info.isMain === true );
+            const hasMainTrue = normalizedInfo.some( ( info ) => info.isMain === true );
             let mainAssigned  = false;
+            let visualIndex   = 0;
 
-            normalizedInfo.forEach( ( info, index ) => {
-                info.order = index;
+            normalizedInfo.forEach( ( info ) => {
+                const isVisual = info.attachmentType === 'IMAGE' || info.attachmentType === 'VIDEOS';
 
-                if ( hasMainTrue ) {
-                    if ( info.isMain === true && !mainAssigned ) {
-                        info.isMain  = true;
-                        mainAssigned = true;
+                if ( isVisual ) {
+                    info.order = visualIndex;
+                    visualIndex++;
+
+                    if ( hasMainTrue ) {
+                        if ( info.isMain === true && !mainAssigned ) {
+                            info.isMain  = true;
+                            mainAssigned = true;
+                        } else {
+                            info.isMain = false;
+                        }
                     } else {
-                        info.isMain = false;
+                        info.isMain = info.order === 0;
                     }
                 } else {
-                    info.isMain = index === 0;
+                    info.order  = null;
+                    info.isMain = false;
                 }
-            });
+            } );
 
             await this.prisma.$transaction(
                 normalizedInfo.map( info => 
@@ -555,9 +529,9 @@ export class ProductsService {
                 )
             );
 
-            return await this.findOne( productId, { includeFiles : true });
+            return await this.findOne( productId, { includeFiles : true }, true );
         } catch ( error ) {
-            throw PrismaException.catch( error );
+            throw PrismaException.catch( error, 'Product' );
         }
     }
 
@@ -618,7 +592,7 @@ export class ProductsService {
 
             return { message : 'Imágenes eliminadas exitosamente' };
         } catch ( error ) {
-            throw PrismaException.catch( error );
+            throw PrismaException.catch( error, 'Product' );
         }
     }
 
