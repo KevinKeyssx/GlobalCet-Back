@@ -23,7 +23,7 @@ export class PrismaException {
     static readonly #logger = new Logger( PrismaException.name );
 
     static catch( exception: any, message?: string ) {
-        const response = exception?.response?.message || 'Unknown error';
+        const response = exception?.meta?.driverAdapterError?.cause?.originalMessage || 'Unknown error';
 
         if ( exception.status === 400 ) {
             this.#logger.error( response );
@@ -56,8 +56,8 @@ export class PrismaException {
         }
 
         if ( exception.code === ERROR_MESSAGES.ALREADY_EXISTS ) {
-            this.#logger.error(`${message ?? exception.meta.target} already exists.`);
-            throw new BadRequestException( `${ message ?? exception.meta.target} already exists.` );
+            this.#logger.error(`${message ?? exception.meta.modelName} already exists.`);
+            throw new BadRequestException( `${ message ?? exception.meta.modelName} already exists.` );
         }
 
         if ( exception.code === ERROR_MESSAGES.NOT_FOUND ) {
