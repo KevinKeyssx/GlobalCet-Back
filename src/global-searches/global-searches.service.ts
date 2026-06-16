@@ -14,6 +14,12 @@ import {
 	IGlobalSearchResponse,
 	IGlobalSearchTotalsResponse
 } from '@global-searches/interfaces/global-search-result.interface';
+import {
+	normalizeText,
+	searchProductIds,
+	searchKitIds,
+	searchMobileLabIds
+} from '@common/utils/search.utils';
 
 
 
@@ -304,80 +310,90 @@ export class GlobalSearchesService {
 			} else {
 				// Búsqueda inteligente con texto
 				const isSkuQuery = cleanQuery.toUpperCase().startsWith( this.SKU_PREFIX );
+				const normalized = normalizeText( cleanQuery );
+				const pattern    = `%${ normalized }%`;
 
-				// Definir filtros de coincidencia de texto
-				const buildProductWhere = ( isSku : boolean ): Prisma.ProductWhereInput => ( {
-					...whereProductBase,
-					OR : isSku
-						? [ { sku : { contains : cleanQuery, mode : 'insensitive' } } ]
-						: [
-								{ name : { contains : cleanQuery, mode : 'insensitive' } },
-								{ subcategory : { name : { contains : cleanQuery, mode : 'insensitive' } } },
-								{ subcategory : { category : { name : { contains : cleanQuery, mode : 'insensitive' } } } },
-								{ material : { name : { contains : cleanQuery, mode : 'insensitive' } } },
-							],
-				} );
+				const executeSearch = async ( isSku : boolean ) : Promise< void > => {
+					const promises : Promise< any >[] = [];
 
-				const buildKitWhere = ( isSku : boolean ): Prisma.KitWhereInput => ( {
-					...whereKitBase,
-					OR : isSku
-						? [ { sku : { contains : cleanQuery, mode : 'insensitive' } } ]
-						: [
-								{ name : { contains : cleanQuery, mode : 'insensitive' } },
-								{ category : { name : { contains : cleanQuery, mode : 'insensitive' } } },
-							],
-				} );
+					let matchedProductIds   : string[] = [];
+					let matchedKitIds       : string[] = [];
+					let matchedMobileLabIds : string[] = [];
 
-				const buildMobileLabWhere = ( isSku : boolean ): Prisma.MobileLabWhereInput => ( {
-					...whereMobileLabBase,
-					OR : isSku
-						? [ { sku : { contains : cleanQuery, mode : 'insensitive' } } ]
-						: [
-								{ name : { contains : cleanQuery, mode : 'insensitive' } },
-								{ category : { name : { contains : cleanQuery, mode : 'insensitive' } } },
-							],
-				} );
-
-				const executeSearch = async ( isSku : boolean ) => {
-					const promises : Promise<any>[] = [];
+					const queries : Promise< any >[] = [];
 
 					if ( shouldSearchProducts ) {
-						const where = buildProductWhere( isSku );
+						queries.push(
+							searchProductIds( this.prisma, pattern, isSku ).then( ( ids ) => {
+								matchedProductIds = ids;
+							} )
+						);
+					}
+
+					if ( shouldSearchKits ) {
+						queries.push(
+							searchKitIds( this.prisma, pattern, isSku ).then( ( ids ) => {
+								matchedKitIds = ids;
+							} )
+						);
+					}
+
+					if ( shouldSearchMobileLabs ) {
+						queries.push(
+							searchMobileLabIds( this.prisma, pattern, isSku ).then( ( ids ) => {
+								matchedMobileLabIds = ids;
+							} )
+						);
+					}
+
+					await Promise.all( queries );
+
+					if ( shouldSearchProducts ) {
+						const where : Prisma.ProductWhereInput = {
+							...whereProductBase,
+							id : { in : matchedProductIds },
+						};
 						promises.push(
-							this.prisma.product.count( { where } ),
+							this.prisma.product.count( { where : where } ),
 							this.prisma.product.findMany( {
-								where,
-								skip,
-								take,
-								select  : this.#getProductSelect(),
+								where   : where,
+								skip    : skip,
+								take    : take,
+								select  : this.#getProductSelect( ),
 								orderBy : prismaOrder,
 							} )
 						);
 					}
 
 					if ( shouldSearchKits ) {
-						const where = buildKitWhere( isSku );
+						const where : Prisma.KitWhereInput = {
+							...whereKitBase,
+							id : { in : matchedKitIds },
+						};
 						promises.push(
-							this.prisma.kit.count( { where } ),
+							this.prisma.kit.count( { where : where } ),
 							this.prisma.kit.findMany( {
-								where,
-								skip,
-								take,
-								select  : this.#getKitSelect(),
+								where   : where,
+								skip    : skip,
+								take    : take,
+								select  : this.#getKitSelect( ),
 								orderBy : prismaOrder,
 							} )
 						);
 					}
 
 					if ( shouldSearchMobileLabs ) {
-						const where = buildMobileLabWhere( isSku );
+						const where : Prisma.MobileLabWhereInput = {
+							...whereMobileLabBase,
+							id : { in : matchedMobileLabIds },
+						};
 						promises.push(
-							this.prisma.mobileLab.count( { where } ),
+							this.prisma.mobileLab.count( { where : where } ),
 							this.prisma.mobileLab.findMany( {
-								where,
-								skip,
-								take,
-								select  : this.#getMobileLabSelect(),
+								where   : where,
+								skip    : skip,
+								take    : take,
+								select  : this.#getMobileLabSelect( ),
 								orderBy : prismaOrder,
 							} )
 						);
