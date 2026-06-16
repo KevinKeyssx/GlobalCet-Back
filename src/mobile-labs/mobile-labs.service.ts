@@ -6,6 +6,7 @@ import { Prisma } from '@prisma/client';
 import {
 	getFileNameWithExtension,
 	mapResourceTypeToAttachmentType,
+	matchFileByName,
 }                                       from '@common/utils/file.utils';
 import {
     MobileLabProductDto,
@@ -27,14 +28,14 @@ import {
 import { FileManagerService }           from '@services/file-manager.service';
 import { CreateMobileLabDto }           from '@mobile-labs/dto/create-mobile-lab.dto';
 import { UpdateMobileLabDto }           from '@mobile-labs/dto/update-mobile-lab.dto';
-import { MobileLabFileConfigDto }       from '@mobile-labs/dto/mobile-lab-file-config.dto';
+import { FileConfigDto }                from '@common/dto/file-config.dto';
 import { UpdateMobileLabFilesDto }      from '@mobile-labs/dto/update-mobile-lab-files.dto';
 import { DeleteMobileLabFilesDto }      from '@mobile-labs/dto/delete-mobile-lab-files.dto';
 import { DeleteMobileLabRelationsDto }  from '@mobile-labs/dto/delete-mobile-lab-relations.dto';
 import { MobileLabPaginationFilterDto } from '@mobile-labs/dto/pagination-filter.dto';
 import { IncludesMobileLabDto }         from '@mobile-labs/dto/includes.dto';
 import { SubCategoryOrderField }        from '@common/dto/pagination.dto';
-
+import { getMobileLabSelect }           from '@mobile-labs/utils/mobile-lab-select.utils';
 
 
 @Injectable()
@@ -47,75 +48,6 @@ export class MobileLabsService {
 		private readonly prisma             : PrismaService,
 		private readonly fileManagerService : FileManagerService,
 	) {}
-
-
-	#getMobileLabSelect(
-		includeFiles    : boolean,
-		includeProducts : boolean,
-		includeKits     : boolean,
-	) : Prisma.MobileLabSelect {
-		return {
-			id          : true,
-			sku         : true,
-			name        : true,
-			description : true,
-			dimensions  : true,
-			active      : true,
-			categoryId  : true,
-			createdAt   : true,
-			updatedAt   : true,
-			files       : {
-				where  : includeFiles ? {} : { isMain : true },
-				select : {
-					id             : true,
-					url            : true,
-					alt            : true,
-					isMain         : true,
-					order          : true,
-					attachmentType : true,
-				},
-				orderBy : { order : 'asc' },
-			},
-			...( includeProducts && {
-				products : {
-					select : {
-						id        : true,
-						quantity  : true,
-						productId : true,
-						product   : {
-							select : {
-								id   : true,
-								name : true,
-								sku  : true,
-							},
-						},
-					},
-				},
-			} ),
-			...( includeKits && {
-				kits : {
-					select : {
-						id       : true,
-						quantity : true,
-						kitId    : true,
-						kit      : {
-							select : {
-								id   : true,
-								name : true,
-								sku  : true,
-							},
-						},
-					},
-				},
-			} ),
-			category : {
-				select : {
-					id   : true,
-					name : true,
-				},
-			},
-		};
-	}
 
 
 	async create( createMobileLabDto : CreateMobileLabDto, files? : Express.Multer.File[] ) : Promise<IMobileLab> {
@@ -169,9 +101,10 @@ export class MobileLabsService {
 			let visualIndex     = 0;
 
 			const filesCreate = uploadedFiles.map( ( item, index ) => {
-				const type     = mapResourceTypeToAttachmentType( item.resource_type, item.secure_url );
-				const isVisual = type === 'IMAGE' || type === 'VIDEOS';
-				const info     = filesInfo?.[ index ];
+				const type          = mapResourceTypeToAttachmentType( item.resource_type, item.secure_url );
+				const isVisual      = type === 'IMAGE' || type === 'VIDEOS';
+				const originalName  = files?.[ index ]?.originalname;
+				const info          = filesInfo?.find( ( img ) => matchFileByName( item.secure_url, img.name || originalName || '' ) ) || filesInfo?.[ index ];
 
 				let isMain               = false;
 				let order : number | null = null;
@@ -223,18 +156,18 @@ export class MobileLabsService {
 						create : kitsCreate,
 					},
 				},
-				select : this.#getMobileLabSelect( true, true, true ),
+				select : getMobileLabSelect( true, true, true ),
 			} ) as unknown as IMobileLab;
 		} catch ( error ) {
 			if ( uploadedFiles.length > 0 ) {
 				try {
-					await this.fileManagerService.deleteMultiple( mobileLabId );
+					await this.fileManagerService.deleteFolder( 'labs', mobileLabId );
 				} catch ( deleteError ) {
 					console.error( 'Error al eliminar los archivos del laboratorio móvil tras falla de creación:', deleteError );
 				}
 			}
 
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Mobile Lab' );
 		}
 	}
 
@@ -290,7 +223,7 @@ export class MobileLabsService {
 					where,
 					skip,
 					take    : size,
-					select  : this.#getMobileLabSelect( includeFiles, includeProducts, includeKits ),
+					select  : getMobileLabSelect( includeFiles, includeProducts, includeKits ),
 					orderBy : { [ orderBy ] : order },
 				} ) as unknown as IMobileLab[],
 			] );
@@ -305,7 +238,7 @@ export class MobileLabsService {
 				},
 			};
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Mobile Lab' );
 		}
 	}
 
@@ -318,10 +251,10 @@ export class MobileLabsService {
 
 			return await this.prisma.mobileLab.findUniqueOrThrow( {
 				where  : { id },
-				select : this.#getMobileLabSelect( includeFiles, includeProducts, includeKits ),
+				select : getMobileLabSelect( includeFiles, includeProducts, includeKits ),
 			} ) as unknown as IMobileLab;
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Mobile Lab' );
 		}
 	}
 
@@ -375,7 +308,7 @@ export class MobileLabsService {
 
 			return await this.findOne( id, { includeFiles : true, includeProducts : true, includeKits : true } );
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Mobile Lab' );
 		}
 	}
 
@@ -389,7 +322,7 @@ export class MobileLabsService {
 
 			// Purga de archivos en Cloudinary
 			try {
-				await this.fileManagerService.deleteMultiple( id );
+				await this.fileManagerService.deleteFolder( 'labs', id );
 			} catch ( deleteError ) {
 				console.error( 'Error al eliminar archivos de Cloudinary para el laboratorio móvil:', deleteError );
 			}
@@ -401,7 +334,7 @@ export class MobileLabsService {
 
 			return { message : 'Laboratorio móvil eliminado exitosamente' };
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Mobile Lab' );
 		}
 	}
 
@@ -411,7 +344,7 @@ export class MobileLabsService {
 	async uploadMobileLabFiles(
 		mobileLabId : string,
 		files       : Express.Multer.File[],
-		filesInfo?  : MobileLabFileConfigDto[],
+		filesInfo?  : FileConfigDto[],
 	) : Promise<IMobileLab> {
 		try {
 			const currentFiles = await this.prisma.mobileLabFile.findMany( {
@@ -445,9 +378,10 @@ export class MobileLabsService {
 			let visualIndex     = 0;
 
 			const filesCreate = uploadedFiles.map( ( item, index ) => {
-				const type     = mapResourceTypeToAttachmentType( item.resource_type, item.secure_url );
-				const isVisual = type === 'IMAGE' || type === 'VIDEOS';
-				const info     = filesInfo?.[ index ];
+				const type          = mapResourceTypeToAttachmentType( item.resource_type, item.secure_url );
+				const isVisual      = type === 'IMAGE' || type === 'VIDEOS';
+				const originalName  = files[ index ]?.originalname;
+				const info          = filesInfo?.find( ( img ) => matchFileByName( item.secure_url, img.name || originalName || '' ) ) || filesInfo?.[ index ];
 
 				let isMain               = false;
 				let order : number | null = null;
@@ -481,7 +415,7 @@ export class MobileLabsService {
 
 			return await this.findOne( mobileLabId, { includeFiles : true } );
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Mobile Lab' );
 		}
 	}
 
@@ -504,12 +438,14 @@ export class MobileLabsService {
 						throw new BadRequestException( `El archivo con ID "${ file.id }" no pertenece a este laboratorio móvil` );
 					}
 
+					const isVisual = existing.attachmentType === 'IMAGE' || existing.attachmentType === 'VIDEOS';
+
 					await tx.mobileLabFile.update( {
 						where : { id : file.id },
 						data  : {
 							alt    : file.alt,
-							isMain : file.isMain,
-							order  : file.order,
+							isMain : isVisual ? file.isMain : false,
+							order  : isVisual ? file.order : null,
 						},
 					} );
 				}
@@ -517,7 +453,7 @@ export class MobileLabsService {
 
 			return await this.findOne( mobileLabId, { includeFiles : true } );
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Mobile Lab' );
 		}
 	}
 
@@ -560,7 +496,7 @@ export class MobileLabsService {
 
 			return { message : 'Archivo eliminado exitosamente' };
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Mobile Lab' );
 		}
 	}
 
@@ -617,7 +553,7 @@ export class MobileLabsService {
 
 			return { message : 'Archivos eliminados exitosamente' };
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Mobile Lab' );
 		}
 	}
 
@@ -665,7 +601,7 @@ export class MobileLabsService {
 
 			return await this.findOne( mobileLabId, { includeProducts : true } );
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Mobile Lab' );
 		}
 	}
 
@@ -699,7 +635,7 @@ export class MobileLabsService {
 				},
 			} ) as unknown as IMobileLabProduct;
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Mobile Lab');
 		}
 	}
 
@@ -721,7 +657,7 @@ export class MobileLabsService {
 
 			return { message : 'Producto eliminado del laboratorio móvil exitosamente' };
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Mobile Lab' );
 		}
 	}
 
@@ -753,7 +689,7 @@ export class MobileLabsService {
 
 			return { message : 'Productos eliminados del laboratorio móvil exitosamente' };
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Mobile Lab' );
 		}
 	}
 
@@ -801,7 +737,7 @@ export class MobileLabsService {
 
 			return await this.findOne( mobileLabId, { includeKits : true } );
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Mobile Lab' );
 		}
 	}
 
@@ -835,7 +771,7 @@ export class MobileLabsService {
 				},
 			} ) as unknown as IMobileLabKit;
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Mobile Lab' );
 		}
 	}
 
@@ -857,7 +793,7 @@ export class MobileLabsService {
 
 			return { message : 'Kit eliminado del laboratorio móvil exitosamente' };
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Mobile Lab' );
 		}
 	}
 
@@ -889,7 +825,7 @@ export class MobileLabsService {
 
 			return { message : 'Kits eliminados del laboratorio móvil exitosamente' };
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Mobile Lab' );
 		}
 	}
 
