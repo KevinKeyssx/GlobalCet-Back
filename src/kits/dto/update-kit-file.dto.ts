@@ -1,10 +1,10 @@
 import { ApiProperty }          from '@nestjs/swagger';
 
 import { IsNotEmpty, IsString } from 'class-validator';
-import { KitFileConfigDto }     from './kit-file-config.dto';
+import { FileConfigDto }        from '@common/dto/file-config.dto';
 
 
-export class UpdateKitFileDto extends KitFileConfigDto {
+export class UpdateKitFileDto extends FileConfigDto {
 
 	@ApiProperty( {
 		description : 'ID del archivo a actualizar (ULID)',

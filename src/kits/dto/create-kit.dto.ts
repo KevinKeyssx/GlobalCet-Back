@@ -17,7 +17,7 @@ import {
 
 import { NameDto }          from '@common/dto/name.dto';
 import { UploadFilesDto }   from '@common/dto/upload-files.dto';
-import { KitFileConfigDto } from '@kits/dto/kit-file-config.dto';
+import { FileConfigDto }    from '@common/dto/file-config.dto';
 import { KitProductDto }    from '@kits/dto/kit-product.dto';
 
 
@@ -72,17 +72,17 @@ export class CreateKitDto extends IntersectionType(
 		if ( typeof value === 'string' ) {
 			try {
 				const parsed = JSON.parse( value );
-				return plainToInstance( KitFileConfigDto, parsed );
+				return plainToInstance( FileConfigDto, parsed );
 			} catch ( error ) {
 				return [];
 			}
 		}
-		return plainToInstance( KitFileConfigDto, value );
+		return plainToInstance( FileConfigDto, value );
 	} )
 	@IsArray()
 	@ValidateNested( { each : true } )
-	@Type( () => KitFileConfigDto )
-	filesInfo?: KitFileConfigDto[];
+	@Type( () => FileConfigDto )
+	filesInfo?: FileConfigDto[];
 
 	@ApiPropertyOptional( {
 		description : 'Arreglo con los productos asociados y sus cantidades (JSON stringified)',

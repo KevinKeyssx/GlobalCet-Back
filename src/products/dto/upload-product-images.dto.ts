@@ -2,7 +2,7 @@ import { ApiPropertyOptional }                 from '@nestjs/swagger';
 import { IsArray, IsOptional, ValidateNested } from 'class-validator';
 import { Transform, Type, plainToInstance }   from 'class-transformer';
 
-import { ProductImageConfigDto } from './product-image-config.dto';
+import { FileConfigDto } from '@common/dto/file-config.dto';
 
 
 export class UploadProductImagesDto {
@@ -17,16 +17,16 @@ export class UploadProductImagesDto {
 		if ( typeof value === 'string' ) {
 			try {
 				const parsed = JSON.parse( value );
-				return plainToInstance( ProductImageConfigDto, parsed );
+				return plainToInstance( FileConfigDto, parsed );
 			} catch ( error ) {
 				return [];
 			}
 		}
-		return plainToInstance( ProductImageConfigDto, value );
+		return plainToInstance( FileConfigDto, value );
 	} )
 	@IsArray()
 	@ValidateNested( { each : true } )
-	@Type( () => ProductImageConfigDto )
-	imagesInfo?: ProductImageConfigDto[];
+	@Type( ( ) => FileConfigDto )
+	imagesInfo?: FileConfigDto[];
 
 }

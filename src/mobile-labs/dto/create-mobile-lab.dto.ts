@@ -15,11 +15,11 @@ import {
     plainToInstance
 }                       from 'class-transformer';
 
-import { NameDto }                  from '@common/dto/name.dto';
-import { UploadFilesDto }           from '@common/dto/upload-files.dto';
-import { MobileLabFileConfigDto }   from '@mobile-labs/dto/mobile-lab-file-config.dto';
-import { MobileLabProductDto }      from '@mobile-labs/dto/mobile-lab-product.dto';
-import { MobileLabKitDto }          from './mobile-lab-kit.dto';
+import { NameDto }              from '@common/dto/name.dto';
+import { UploadFilesDto }       from '@common/dto/upload-files.dto';
+import { FileConfigDto }        from '@common/dto/file-config.dto';
+import { MobileLabProductDto }  from '@mobile-labs/dto/mobile-lab-product.dto';
+import { MobileLabKitDto }      from './mobile-lab-kit.dto';
 
 
 export class CreateMobileLabDto extends IntersectionType(
@@ -81,17 +81,17 @@ export class CreateMobileLabDto extends IntersectionType(
 		if ( typeof value === 'string' ) {
 			try {
 				const parsed = JSON.parse( value );
-				return plainToInstance( MobileLabFileConfigDto, parsed );
+				return plainToInstance( FileConfigDto, parsed );
 			} catch ( error ) {
 				return [];
 			}
 		}
-		return plainToInstance( MobileLabFileConfigDto, value );
+		return plainToInstance( FileConfigDto, value );
 	} )
 	@IsArray()
 	@ValidateNested( { each : true } )
-	@Type( () => MobileLabFileConfigDto )
-	filesInfo?: MobileLabFileConfigDto[];
+	@Type( () => FileConfigDto )
+	filesInfo?: FileConfigDto[];
 
 	@ApiPropertyOptional( {
 		description : 'Arreglo con los productos asociados y sus cantidades (JSON stringified)',

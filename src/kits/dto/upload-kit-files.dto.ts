@@ -2,7 +2,8 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 
 import { IsArray, IsOptional, ValidateNested }  from 'class-validator';
 import { Transform, Type, plainToInstance }     from 'class-transformer';
-import { KitFileConfigDto }                     from '@kits/dto/kit-file-config.dto';
+
+import { FileConfigDto } from '@common/dto/file-config.dto';
 
 
 export class UploadKitFilesDto {
@@ -17,16 +18,16 @@ export class UploadKitFilesDto {
 		if ( typeof value === 'string' ) {
 			try {
 				const parsed = JSON.parse( value );
-				return plainToInstance( KitFileConfigDto, parsed );
+				return plainToInstance( FileConfigDto, parsed );
 			} catch ( error ) {
 				return [];
 			}
 		}
-		return plainToInstance( KitFileConfigDto, value );
+		return plainToInstance( FileConfigDto, value );
 	} )
 	@IsArray()
 	@ValidateNested( { each : true } )
-	@Type( () => KitFileConfigDto )
-	filesInfo?: KitFileConfigDto[];
+	@Type( ( ) => FileConfigDto )
+	filesInfo?: FileConfigDto[];
 
 }

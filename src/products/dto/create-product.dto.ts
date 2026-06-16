@@ -14,7 +14,7 @@ import { Transform, Type, plainToInstance } from 'class-transformer';
 import { NameDto }                  from '@common/dto/name.dto';
 import { UploadFilesDto }           from '@common/dto/upload-files.dto';
 import { IncludesItemsDto }         from '@products/dto/includes-items.dto';
-import { ProductImageConfigDto }    from '@products/dto/product-image-config.dto';
+import { FileConfigDto }            from '@common/dto/file-config.dto';
 
 
 export class CreateProductDto extends IntersectionType(
@@ -78,17 +78,17 @@ export class CreateProductDto extends IntersectionType(
 			try {
 				const parsed = JSON.parse( value );
 
-                return plainToInstance( ProductImageConfigDto, parsed );
+                return plainToInstance( FileConfigDto, parsed );
 			} catch ( error ) {
 				return [];
 			}
 		}
 
-        return plainToInstance( ProductImageConfigDto, value );
+        return plainToInstance( FileConfigDto, value );
 	} )
 	@IsArray()
 	@ValidateNested( { each : true } )
-	@Type( () => ProductImageConfigDto )
-	imagesInfo?: ProductImageConfigDto[];
+	@Type( () => FileConfigDto )
+	imagesInfo?: FileConfigDto[];
 
 }

@@ -3,7 +3,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsArray, IsOptional, ValidateNested }  from 'class-validator';
 import { Transform, Type, plainToInstance }     from 'class-transformer';
 
-import { MobileLabFileConfigDto } from '@mobile-labs/dto/mobile-lab-file-config.dto';
+import { FileConfigDto } from '@common/dto/file-config.dto';
 
 
 export class UploadMobileLabFilesDto {
@@ -18,16 +18,16 @@ export class UploadMobileLabFilesDto {
 		if ( typeof value === 'string' ) {
 			try {
 				const parsed = JSON.parse( value );
-				return plainToInstance( MobileLabFileConfigDto, parsed );
+				return plainToInstance( FileConfigDto, parsed );
 			} catch ( error ) {
 				return [];
 			}
 		}
-		return plainToInstance( MobileLabFileConfigDto, value );
+		return plainToInstance( FileConfigDto, value );
 	} )
 	@IsArray()
 	@ValidateNested( { each : true } )
-	@Type( () => MobileLabFileConfigDto )
-	filesInfo?: MobileLabFileConfigDto[];
+	@Type( ( ) => FileConfigDto )
+	filesInfo?: FileConfigDto[];
 
 }
