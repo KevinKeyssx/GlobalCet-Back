@@ -8,6 +8,32 @@ datasource db {
 }
 
 
+enum Role {
+    ADMIN
+    SUB_ADMIN
+    CLIENT
+    VIEWER
+}
+
+
+model User {
+    id      String  @id @default( ulid() )
+    name    String
+    email   String @unique 
+
+    phone String?
+
+    role Role @default(CLIENT)
+
+    active             Boolean   @default(true)
+
+    createdAt          DateTime  @default(now())
+    updatedAt          DateTime  @updatedAt
+
+    @@map("users")
+}
+
+
 model Material {
     id                 String    @id @default(ulid())
     name               String    @unique
@@ -128,7 +154,7 @@ model KitFile {
     attachmentType AttachmentType? @default(IMAGE)
 
     kitId     String
-    kit       Kit     @relation(fields: [kitId], references: [id])
+    kit       Kit     @relation(fields: [kitId], references: [id], onDelete: Cascade)
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
