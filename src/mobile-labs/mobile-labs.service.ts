@@ -294,9 +294,9 @@ export class MobileLabsService {
 				} );
 			}
 
-			await this.prisma.mobileLab.update( {
-				where : { id },
-				data  : {
+			return await this.prisma.mobileLab.update( {
+				where  : { id },
+				data   : {
 					sku,
 					name,
 					categoryId,
@@ -304,9 +304,8 @@ export class MobileLabsService {
 					dimensions,
 					active,
 				},
-			} );
-
-			return await this.findOne( id, { includeFiles : true, includeProducts : true, includeKits : true } );
+				select : getMobileLabSelect( true, true, true ),
+			} ) as unknown as IMobileLab;
 		} catch ( error ) {
 			throw PrismaException.catch( error, 'Mobile Lab' );
 		}
