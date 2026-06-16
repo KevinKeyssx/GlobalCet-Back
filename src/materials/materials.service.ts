@@ -1,14 +1,14 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+
 import { Prisma, Material } from '@prisma/client';
 
-import { PrismaException } from '@prisma/prisma-catch';
-import { PrismaService } from '@prisma/prisma.service';
-import { CreateMaterialDto } from './dto/create-material.dto';
-import { UpdateMaterialDto } from './dto/update-material.dto';
-import { MaterialPaginationFilterDto } from './dto/pagination-filter.dto';
-import { PaginatedResult } from '@common/interfaces/paginated-result.interface';
-import { SubCategoryOrderField } from '@common/dto/pagination.dto';
-
+import { PrismaException }              from '@prisma/prisma-catch';
+import { PrismaService }                from '@prisma/prisma.service';
+import { PaginatedResult }              from '@common/interfaces/paginated-result.interface';
+import { SubCategoryOrderField }        from '@common/dto/pagination.dto';
+import { CreateMaterialDto }            from './dto/create-material.dto';
+import { UpdateMaterialDto }            from './dto/update-material.dto';
+import { MaterialPaginationFilterDto }  from './dto/pagination-filter.dto';
 
 
 @Injectable()
@@ -40,22 +40,6 @@ export class MaterialsService {
 			: this.#slugify( createMaterialDto.name );
 
 		try {
-			const nameExists = await this.prisma.material.findUnique({
-				where	: { name : createMaterialDto.name },
-			});
-
-			if ( nameExists ) {
-				throw new ConflictException( `El material con el nombre '${ createMaterialDto.name }' ya existe.` );
-			}
-
-			const slugExists = await this.prisma.material.findUnique({
-				where	: { slug : slugToUse },
-			});
-
-			if ( slugExists ) {
-				throw new ConflictException( `El material con el slug '${ slugToUse }' ya existe.` );
-			}
-
 			return await this.prisma.material.create({
 				data	: {
 					name			: createMaterialDto.name,
@@ -68,7 +52,7 @@ export class MaterialsService {
 				},
 			});
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Material' );
 		}
 	}
 
@@ -89,7 +73,7 @@ export class MaterialsService {
 				},
 			});
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Material' );
 		}
 	}
 
@@ -136,7 +120,7 @@ export class MaterialsService {
 				},
 			};
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Material' );
 		}
 	}
 
@@ -153,7 +137,7 @@ export class MaterialsService {
 
 			return material;
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Material' );
 		}
 	}
 
@@ -203,7 +187,7 @@ export class MaterialsService {
 				},
 			});
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Material' );
 		}
 	}
 
@@ -216,7 +200,7 @@ export class MaterialsService {
 				where	: { id },
 			});
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Material' );
 		}
 	}
 
