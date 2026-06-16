@@ -23,7 +23,7 @@ import { ENVS }                     from '@config/envs';
 import { IKit, IKitProduct }        from '@kits/models/kit.interface';
 import { CreateKitDto }             from '@kits/dto/create-kit.dto';
 import { UpdateKitDto }             from '@kits/dto/update-kit.dto';
-import { KitFileConfigDto }         from '@kits/dto/kit-file-config.dto';
+import { FileConfigDto }            from '@common/dto/file-config.dto';
 import { UpdateKitFilesDto }        from '@kits/dto/update-kit-files.dto';
 import { DeleteKitFilesDto }        from '@kits/dto/delete-kit-files.dto';
 import { KitProductDto }            from '@kits/dto/kit-product.dto';
@@ -333,7 +333,7 @@ export class KitsService {
 	async uploadKitFiles(
 		kitId: string,
 		files: Express.Multer.File[],
-		filesInfo?: KitFileConfigDto[],
+		filesInfo?: FileConfigDto[],
 	): Promise<IKit> {
 		try {
 			const currentFiles = await this.prisma.kitFile.findMany( {
