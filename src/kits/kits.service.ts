@@ -403,7 +403,7 @@ export class KitsService {
 				},
 			} );
 
-			return await this.findOne( kitId, { includeFiles : true } );
+			return await this.findOne( kitId, { includeFiles : true }, true );
 		} catch ( error ) {
 			throw PrismaException.catch( error, 'Kits' );
 		}
@@ -425,9 +425,9 @@ export class KitsService {
 				throw new BadRequestException( 'Se deben proporcionar todos los archivos del kit' );
 			}
 
-			const currentFileIds = currentFiles.map( file => file.id );
-			const incomingIds     = filesInfo.map( info => info.id );
-			const hasAllIds       = incomingIds.every( id => currentFileIds.includes( id ) );
+			const currentFileIds    = currentFiles.map( file => file.id );
+			const incomingIds       = filesInfo.map( info => info.id );
+			const hasAllIds         = incomingIds.every( id => currentFileIds.includes( id ) );
 
 			if ( !hasAllIds ) {
 				throw new BadRequestException( 'Uno o más archivos no pertenecen a este kit' );
@@ -488,7 +488,7 @@ export class KitsService {
 				)
 			);
 
-			return await this.findOne( kitId, { includeFiles : true } );
+			return await this.findOne( kitId, { includeFiles : true }, true );
 		} catch ( error ) {
 			throw PrismaException.catch( error, 'Kits' );
 		}
@@ -623,7 +623,7 @@ export class KitsService {
 				)
 			);
 
-			return await this.findOne( kitId, { includeProducts : true } );
+			return await this.findOne( kitId, { includeProducts : true }, true );
 		} catch ( error ) {
 			throw PrismaException.catch( error, 'Kits' );
 		}
