@@ -4,8 +4,13 @@ import { ulid } from 'ulid';
 
 import {
     getFileNameWithExtension,
-    mapResourceTypeToAttachmentType
+    mapResourceTypeToAttachmentType,
+    matchFileByName
 }                                   from '@common/utils/file.utils';
+import {
+	normalizeText,
+	searchKitIds
+} from '@common/utils/search.utils';
 import {
     FileManagerService,
     ResponeFileUpload
@@ -26,6 +31,8 @@ import { DeleteKitProductsDto }     from '@kits/dto/delete-kit-products.dto';
 import { KitPaginationFilterDto }   from '@kits/dto/pagination-filter.dto';
 import { IncludesKitDto }           from '@kits/dto/includes.dto';
 import { SubCategoryOrderField }    from '@common/dto/pagination.dto';
+import { getKitSelect }             from '@kits/utils/kit-select.utils';
+
 
 
 @Injectable()
@@ -35,54 +42,6 @@ export class KitsService {
 		private readonly prisma: PrismaService,
 		private readonly fileManagerService: FileManagerService,
 	) {}
-
-
-	#getKitSelect( includeFiles: boolean, includeProducts: boolean ): Prisma.KitSelect {
-		return {
-			id          : true,
-			sku         : true,
-			name        : true,
-			description : true,
-			active      : true,
-			categoryId  : true,
-			createdAt   : true,
-			updatedAt   : true,
-			files       : {
-				where  : includeFiles ? {} : { isMain: true },
-				select : {
-					id             : true,
-					url            : true,
-					alt            : true,
-					isMain         : true,
-					order          : true,
-					attachmentType : true,
-				},
-				orderBy : { order : 'asc' },
-			},
-			...( includeProducts && {
-				products : {
-					select : {
-						id        : true,
-						quantity  : true,
-						productId : true,
-						product   : {
-							select : {
-								id   : true,
-								name : true,
-								sku  : true,
-							},
-						},
-					},
-				},
-			} ),
-			category : {
-				select : {
-					id   : true,
-					name : true,
-				},
-			},
-		};
-	}
 
 
 	async create( createKitDto: CreateKitDto, files?: Express.Multer.File[] ): Promise<IKit> {
@@ -134,9 +93,10 @@ export class KitsService {
 			let visualIndex     = 0;
 
 			const filesCreate = uploadedFiles.map( ( item, index ) => {
-				const type = mapResourceTypeToAttachmentType( item.resource_type, item.secure_url );
-				const isVisual = type === 'IMAGE' || type === 'VIDEOS';
-				const info     = filesInfo?.[ index ];
+				const type          = mapResourceTypeToAttachmentType( item.resource_type, item.secure_url );
+				const isVisual      = type === 'IMAGE' || type === 'VIDEOS';
+				const originalName  = files?.[ index ]?.originalname;
+				const info          = filesInfo?.find( ( img ) => matchFileByName( item.secure_url, img.name || originalName || '' ) ) || filesInfo?.[ index ];
 
 				let isMain               = false;
 				let order: number | null = null;
@@ -183,10 +143,10 @@ export class KitsService {
 						},
 					} ),
 				},
-				select : this.#getKitSelect( true, true ),
+				select : getKitSelect( true, true ),
 			} ) as unknown as IKit;
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Kits' );
 		}
 	}
 
@@ -213,24 +173,29 @@ export class KitsService {
 			};
 
 			if ( query ) {
-				if ( query.toLowerCase().startsWith( 'c' ) ) {
-					const skuWhere: Prisma.KitWhereInput = {
-						...where,
-						sku : { contains : query, mode : 'insensitive' },
-					};
-					const count = await this.prisma.kit.count( { where : skuWhere } );
-					if ( count > 0 ) {
-						where = skuWhere;
-					} else {
+				const normalized = normalizeText( query );
+				const pattern    = `%${ normalized }%`;
+
+				if ( query.toLowerCase( ).startsWith( 'c' ) ) {
+					const skuIds = await searchKitIds( this.prisma, pattern, true );
+
+					if ( skuIds.length > 0 ) {
 						where = {
 							...where,
-							name : { contains : query, mode : 'insensitive' },
+							id : { in : skuIds },
+						};
+					} else {
+						const nameIds = await searchKitIds( this.prisma, pattern, false );
+						where = {
+							...where,
+							id : { in : nameIds },
 						};
 					}
 				} else {
+					const nameIds = await searchKitIds( this.prisma, pattern, false );
 					where = {
 						...where,
-						name : { contains : query, mode : 'insensitive' },
+						id : { in : nameIds },
 					};
 				}
 			}
@@ -241,7 +206,7 @@ export class KitsService {
 					where,
 					skip,
 					take    : size,
-					select  : this.#getKitSelect( includeFiles, includeProducts ),
+					select  : getKitSelect( includeFiles, includeProducts ),
 					orderBy : { [ orderBy ] : order },
 				} ) as unknown as IKit[],
 			] );
@@ -256,22 +221,31 @@ export class KitsService {
 				},
 			};
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Kits' );
 		}
 	}
 
 
-	async findOne( id: string, includesKitDto?: IncludesKitDto ): Promise<IKit> {
+	async findOne(
+		id: string,
+		includesKitDto?: IncludesKitDto,
+		getAllStatus: boolean = false,
+	): Promise<IKit> {
 		try {
 			const includeFiles    = includesKitDto?.includeFiles ?? true;
 			const includeProducts = includesKitDto?.includeProducts ?? true;
+			const where : Prisma.KitWhereInput = { id };
+
+			if ( !getAllStatus ) {
+				where.active = true;
+			}
 
 			return await this.prisma.kit.findUniqueOrThrow( {
-				where  : { id },
-				select : this.#getKitSelect( includeFiles, includeProducts ),
+				select : getKitSelect( includeFiles, includeProducts ),
+				where  : where as any,
 			} ) as unknown as IKit;
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Kits' );
 		}
 	}
 
@@ -323,10 +297,10 @@ export class KitsService {
 			return await this.prisma.kit.update( {
 				where  : { id },
 				data,
-				select : this.#getKitSelect( true, true ),
+				select : getKitSelect( true, true ),
 			} ) as unknown as IKit;
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Kits' );
 		}
 	}
 
@@ -334,29 +308,24 @@ export class KitsService {
 	async remove( id: string ): Promise<Kit> {
 		try {
 			// Recuperar archivos del kit
-			const kitFiles = await this.prisma.kitFile.findMany( {
+			const kitFiles = await this.prisma.kitFile.findMany({
 				where : { kitId : id },
-			} );
+			});
 
 			if ( kitFiles.length > 0 ) {
-				const fileNames = kitFiles.map( file => file.url );
-				await this.fileManagerService.deleteFiles( 'kits', id, fileNames );
+                try {
+                    await this.fileManagerService.deleteFolder( 'kits', id );
+                } catch ( deleteError ) {
+                    console.error( 'Error al eliminar archivos de Cloudinary para el Kit:', deleteError );
+                }
 			}
 
-			// Primero eliminar cascadas manuales si es necesario o dejar que delete haga su trabajo
-			await this.prisma.kitFile.deleteMany( {
-				where : { kitId : id },
-			} );
-
-			await this.prisma.kitProduct.deleteMany( {
-				where : { kitId : id },
-			} );
-
-			return await this.prisma.kit.delete( {
+			// Debido a onDelete: Cascade, Prisma elimina en cascada las relaciones dependientes en la BD
+			return await this.prisma.kit.delete({
 				where : { id },
-			} );
+			});
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Kits' );
 		}
 	}
 
@@ -399,9 +368,10 @@ export class KitsService {
 			let visualIndex     = 0;
 
 			const filesCreate = uploadedFiles.map( ( item, index ) => {
-				const type = mapResourceTypeToAttachmentType( item.resource_type, item.secure_url );
-				const isVisual = type === 'IMAGE' || type === 'VIDEOS';
-				const info     = filesInfo?.[ index ];
+				const type          = mapResourceTypeToAttachmentType( item.resource_type, item.secure_url );
+				const isVisual      = type === 'IMAGE' || type === 'VIDEOS';
+				const originalName  = files[ index ]?.originalname;
+				const info          = filesInfo?.find( ( img ) => matchFileByName( item.secure_url, img.name || originalName || '' ) ) || filesInfo?.[ index ];
 
 				let isMain               = false;
 				let order: number | null = null;
@@ -435,7 +405,7 @@ export class KitsService {
 
 			return await this.findOne( kitId, { includeFiles : true } );
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Kits' );
 		}
 	}
 
@@ -480,11 +450,14 @@ export class KitsService {
 			const hasMainTrue = normalizedInfo.some( info => info.isMain === true );
 			let mainAssigned  = false;
 
-			normalizedInfo.forEach( ( info, index ) => {
+			let visualIndex = 0;
+
+			normalizedInfo.forEach( ( info ) => {
 				const isVisual = info.attachmentType === 'IMAGE' || info.attachmentType === 'VIDEOS';
 
 				if ( isVisual ) {
-					info.order = index;
+					info.order = visualIndex;
+					visualIndex++;
 
 					if ( hasMainTrue ) {
 						if ( info.isMain === true && !mainAssigned ) {
@@ -494,7 +467,7 @@ export class KitsService {
 							info.isMain = false;
 						}
 					} else {
-						info.isMain = index === 0;
+						info.isMain = info.order === 0;
 					}
 				} else {
 					info.order  = null;
@@ -517,7 +490,7 @@ export class KitsService {
 
 			return await this.findOne( kitId, { includeFiles : true } );
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Kits' );
 		}
 	}
 
@@ -558,7 +531,7 @@ export class KitsService {
 
 			return { message : 'Archivo eliminado exitosamente' };
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Kits' );
 		}
 	}
 
@@ -614,7 +587,7 @@ export class KitsService {
 
 			return { message : 'Archivos eliminados exitosamente' };
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Kits' );
 		}
 	}
 
@@ -652,7 +625,7 @@ export class KitsService {
 
 			return await this.findOne( kitId, { includeProducts : true } );
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Kits' );
 		}
 	}
 
@@ -678,7 +651,7 @@ export class KitsService {
 				},
 			} ) as unknown as IKitProduct;
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Kits' );
 		}
 	}
 
@@ -700,7 +673,7 @@ export class KitsService {
 
 			return { message : 'Producto eliminado del kit exitosamente' };
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Kits' );
 		}
 	}
 
@@ -729,7 +702,7 @@ export class KitsService {
 
 			return { message : 'Productos eliminados del kit exitosamente' };
 		} catch ( error ) {
-			throw PrismaException.catch( error );
+			throw PrismaException.catch( error, 'Kits' );
 		}
 	}
 
