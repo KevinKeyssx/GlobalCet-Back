@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { GlobalSearchesModule } from './global-searches/global-searches.module';
+import { UsersModule }          from './users/users.module';
+import { DuplicatesModule }     from './duplicates/duplicates.module';
 
 import { AppController }        from '@app/app.controller';
 import { ProductsModule }       from '@products/products.module';
@@ -24,7 +26,9 @@ import { PrismaModule }         from '@prisma/prisma.module';
         MaterialsModule,
         KitCategoriesModule,
         LabCategoriesModule,
-        GlobalSearchesModule
+        GlobalSearchesModule,
+        UsersModule,
+        DuplicatesModule
     ],
     controllers : [ AppController ],
 })
