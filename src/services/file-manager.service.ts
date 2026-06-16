@@ -255,10 +255,13 @@ export class FileManagerService {
     }
 
 
-    async deleteMultiple( subfolderId: string ): Promise<void> {
+    async deleteFolder(
+        typeFolder  : TypeFolder,
+        subfolderId : string,
+    ): Promise<void> {
         try {
             await this.withRetry( async () => {
-                const folderPath = `${ this.folder }|products|${ subfolderId }`;
+                const folderPath = `${ this.folder }|${typeFolder}|${ subfolderId }`;
                 const endpoint   = `${ this.baseUrl }/${ ENVS.FILE_MANAGER.MULTIPLE_DELETE_ENDPOINT }/${ folderPath }`;
 
                 const response = await connectRequest<any>({
