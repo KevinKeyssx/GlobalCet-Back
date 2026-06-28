@@ -11,7 +11,9 @@ import {
 	BadRequestException,
 	UploadedFiles,
 	UseGuards,
+	Res
 }                           from '@nestjs/common';
+import { Response }         from 'express';
 import {
     ApiBody,
     ApiConsumes,
@@ -32,6 +34,7 @@ import { KitsService }                  from '@kits/kits.service';
 import { CreateKitDto }                 from '@kits/dto/create-kit.dto';
 import { UpdateKitDto }                 from '@kits/dto/update-kit.dto';
 import { KitPaginationFilterDto }       from '@kits/dto/pagination-filter.dto';
+import { ExportKitDto }                 from '@kits/dto/export-kit.dto';
 import { UploadKitFilesDto }            from '@kits/dto/upload-kit-files.dto';
 import { UpdateKitFilesDto }            from '@kits/dto/update-kit-files.dto';
 import { DeleteKitFilesDto }            from '@kits/dto/delete-kit-files.dto';
@@ -84,6 +87,18 @@ export class KitsController {
 	): Promise<PaginatedResult<IKit>> {
 		return this.kitsService.findAll( filterDto );
 	}
+
+
+	@Get( 'export/file' )
+	@ApiOperation( { summary : 'Exportar kits a archivo Excel o PDF aplicando filtros sin paginación' } )
+	@ApiResponse( { status : 200, description : 'Archivo exportado exitosamente.' } )
+	export(
+		@Query( ) exportKitDto: ExportKitDto,
+		@Res( ) res: Response,
+	): Promise<void> {
+		return this.kitsService.export( res, exportKitDto );
+	}
+
 
 
 	@Get( ':id' )
