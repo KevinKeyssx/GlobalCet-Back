@@ -11,7 +11,9 @@ import {
 	BadRequestException,
 	UploadedFiles,
 	UseGuards,
+	Res
 }                           from '@nestjs/common';
+import { Response }         from 'express';
 import {
 	ApiBody,
 	ApiConsumes,
@@ -35,6 +37,7 @@ import { MobileLabsService }                    from '@mobile-labs/mobile-labs.s
 import { CreateMobileLabDto }                   from '@mobile-labs/dto/create-mobile-lab.dto';
 import { UpdateMobileLabDto }                   from '@mobile-labs/dto/update-mobile-lab.dto';
 import { MobileLabPaginationFilterDto }         from '@mobile-labs/dto/pagination-filter.dto';
+import { ExportMobileLabDto }                   from '@mobile-labs/dto/export-mobile-lab.dto';
 import { UploadMobileLabFilesDto }              from '@mobile-labs/dto/upload-mobile-lab-files.dto';
 import { UpdateMobileLabFilesDto }              from '@mobile-labs/dto/update-mobile-lab-files.dto';
 import { DeleteMobileLabFilesDto }              from '@mobile-labs/dto/delete-mobile-lab-files.dto';
@@ -91,6 +94,18 @@ export class MobileLabsController {
 	}
 
 
+	@Get( 'export/file' )
+	@ApiOperation( { summary : 'Exportar laboratorios móviles a archivo Excel o PDF aplicando filtros sin paginación' } )
+	@ApiResponse( { status : 200, description : 'Archivo exportado exitosamente.' } )
+	export(
+		@Query( ) exportMobileLabDto : ExportMobileLabDto,
+		@Res( ) res : Response,
+	) : Promise<void> {
+		return this.mobileLabsService.export( res, exportMobileLabDto );
+	}
+
+
+
 	@Get( ':id' )
 	@ApiOperation( { summary : 'Obtener el detalle de un laboratorio móvil por su ID' } )
 	@ApiParam( { name : 'id', description : 'ID del laboratorio móvil (ULID)' } )
@@ -129,9 +144,7 @@ export class MobileLabsController {
 		return this.mobileLabsService.remove( id );
 	}
 
-
 	// --- GESTIÓN DE ARCHIVOS DEL LABORATORIO MÓVIL (MobileLabFile) ---
-
 	@Post( ':id/files' )
 	@ApiConsumes( 'multipart/form-data' )
 	@UseInterceptors( FilesInterceptor( 'files', ENVS.FILE_UPLOAD_LIMIT ) )

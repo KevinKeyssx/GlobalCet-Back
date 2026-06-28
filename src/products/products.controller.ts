@@ -7,16 +7,20 @@ import {
 	Param,
 	Delete,
 	Query,
-    UseInterceptors,
-    BadRequestException,
-    UploadedFiles,
-    UseGuards
-}                               from '@nestjs/common';
+	UseInterceptors,
+	BadRequestException,
+	UploadedFiles,
+	UseGuards,
+	Res
+}                           from '@nestjs/common';
+import { Response }         from 'express';
 
 import {
     ApiBody,
     ApiConsumes,
-    ApiHeader
+    ApiHeader,
+    ApiOperation,
+    ApiResponse
 }                           from '@nestjs/swagger';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { Product }          from '@prisma/client';
@@ -27,6 +31,7 @@ import { ProductsService }              from '@products/products.service';
 import { CreateProductDto }             from '@products/dto/create-product.dto';
 import { UpdateProductDto }             from '@products/dto/update-product.dto';
 import { ProductPaginationFilterDto }   from '@products/dto/pagination-filter.dto';
+import { ExportProductDto }             from '@products/dto/export-product.dto';
 import { IProduct }                     from '@products/models/product.interface';
 import { ENVS }                         from '@config/envs';
 import { UploadProductImagesDto }       from '@products/dto/upload-product-images.dto';
@@ -43,6 +48,7 @@ import { IncludesItemsDto }             from '@products/dto/includes-items.dto';
     required : true
 })
 export class ProductsController {
+
 
 	constructor(
 		private readonly productsService: ProductsService
@@ -101,6 +107,18 @@ export class ProductsController {
 	): Promise<PaginatedResult<IProduct>> {
 		return this.productsService.findAll( filterDto );
 	}
+
+
+	@Get( 'export/file' )
+	@ApiOperation( { summary : 'Exportar productos a archivo Excel o PDF aplicando filtros sin paginación' } )
+	@ApiResponse( { status : 200, description : 'Archivo exportado exitosamente.' } )
+	export(
+		@Query( ) exportProductDto: ExportProductDto,
+		@Res( ) res: Response,
+	): Promise<void> {
+		return this.productsService.export( res, exportProductDto );
+	}
+
 
 
 	@Get( 'technical-specs' )
