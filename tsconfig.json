@@ -26,13 +26,14 @@
             "@seed/*"           : ["./src/seed/*"],
             "@products/*"       : ["./src/products/*"],
             "@categories/*"     : ["./src/categories/*"],
-            "@sub-categories/*"  : ["./src/sub-categories/*"],
+            "@sub-categories/*" : ["./src/sub-categories/*"],
             "@materials/*"      : ["./src/materials/*"],
             "@kits/*"           : ["./src/kits/*"],
             "@mobile-labs/*"    : ["./src/mobile-labs/*"],
             "@kit-categories/*" : ["./src/kit-categories/*"],
             "@lab-categories/*" : ["./src/lab-categories/*"],
             "@global-searches/*": ["./src/global-searches/*"],
+            "@quotes/*"         : ["./src/quotes/*"],
             "@app/*"            : ["./src/*"],
         }
     }
