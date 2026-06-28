@@ -36,4 +36,14 @@ export class IncludesMobileLabDto {
 	@Transform(({ value }) => value === 'true' || value === true )
 	includeKits?: boolean = false;
 
+	@ApiPropertyOptional( {
+		description : 'Obtener el laboratorio móvil sin filtrar por estado activo',
+		example     : false,
+		default     : false,
+	} )
+	@IsOptional()
+	@IsBoolean()
+	@Transform( ( { value } ) => value === 'true' || value === true )
+	getAllStatus?: boolean = false;
+
 }

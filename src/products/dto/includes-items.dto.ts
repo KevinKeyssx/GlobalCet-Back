@@ -33,4 +33,15 @@ export class IncludesItemsDto {
 	@Transform( ({ value }) => value === 'true' || value === true )
 	includeMobileLabs?: boolean = false;
 
+	@ApiPropertyOptional( {
+		description : 'Obtener el producto sin filtrar por estado activo',
+		example     : false,
+		default     : false,
+	} )
+	@IsOptional()
+	@IsBoolean()
+	@Transform( ( { value } ) => value === 'true' || value === true )
+	getAllStatus?: boolean = false;
+
 }
+
