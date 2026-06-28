@@ -1,7 +1,8 @@
 import { Injectable, ConflictException, BadRequestException } from '@nestjs/common';
+import { Response } from 'express';
 
-import { ulid } from 'ulid';
-import { Prisma } from '@prisma/client';
+import { ulid }     from 'ulid';
+import { Prisma }   from '@prisma/client';
 
 import {
 	getFileNameWithExtension,
@@ -18,8 +19,10 @@ import {
 }                                       from '@mobile-labs/dto/mobile-lab-kit.dto';
 import { PrismaException }              from '@prisma/prisma-catch';
 import { PaginatedResult }              from '@common/interfaces/paginated-result.interface';
+import { CreatePriceHistoryService }    from '@common/service/create-price-history.service';
 import { ENVS }                         from '@config/envs';
 import { PrismaService }                from '@prisma/prisma.service';
+import { ExportService }                from '@services/export.service';
 import {
     IMobileLab,
 	IMobileLabProduct,
@@ -33,6 +36,8 @@ import { UpdateMobileLabFilesDto }      from '@mobile-labs/dto/update-mobile-lab
 import { DeleteMobileLabFilesDto }      from '@mobile-labs/dto/delete-mobile-lab-files.dto';
 import { DeleteMobileLabRelationsDto }  from '@mobile-labs/dto/delete-mobile-lab-relations.dto';
 import { MobileLabPaginationFilterDto } from '@mobile-labs/dto/pagination-filter.dto';
+import { ExportMobileLabDto }           from '@mobile-labs/dto/export-mobile-lab.dto';
+import { FileType }                     from '@common/dto/file-type.dto';
 import { IncludesMobileLabDto }         from '@mobile-labs/dto/includes.dto';
 import { SubCategoryOrderField }        from '@common/dto/pagination.dto';
 import { getMobileLabSelect }           from '@mobile-labs/utils/mobile-lab-select.utils';
@@ -45,9 +50,12 @@ export class MobileLabsService {
 
 
 	constructor(
-		private readonly prisma             : PrismaService,
-		private readonly fileManagerService : FileManagerService,
+		private readonly prisma                    : PrismaService,
+		private readonly fileManagerService        : FileManagerService,
+		private readonly createPriceHistoryService : CreatePriceHistoryService,
+		private readonly exportService             : ExportService,
 	) {}
+
 
 
 	async create( createMobileLabDto : CreateMobileLabDto, files? : Express.Multer.File[] ) : Promise<IMobileLab> {
@@ -58,6 +66,10 @@ export class MobileLabsService {
 			dimensions,
 			categoryId,
 			active,
+            currentPrice,
+            currentStock,
+            minStock,
+            maxStock,
 			filesInfo,
 			products,
 			kits,
@@ -137,27 +149,37 @@ export class MobileLabsService {
 				quantity : item.quantity ?? 1,
 			} ) ) || [];
 
-			return await this.prisma.mobileLab.create( {
-				data : {
-					id          : mobileLabId,
-					sku,
-					name,
-					description,
-					dimensions,
-					active,
-					categoryId,
-					files       : {
-						create : filesCreate,
+			return await this.prisma.$transaction( async ( tx ) => {
+				const newMobileLab = await tx.mobileLab.create( {
+					data : {
+						id          : mobileLabId,
+						sku,
+						name,
+						description,
+						dimensions,
+						active,
+						categoryId,
+                        currentPrice,
+                        currentStock,
+                        minStock,
+                        maxStock,
+						files       : {
+							create : filesCreate,
+						},
+						products    : {
+							create : productsCreate,
+						},
+						kits        : {
+							create : kitsCreate,
+						},
 					},
-					products    : {
-						create : productsCreate,
-					},
-					kits        : {
-						create : kitsCreate,
-					},
-				},
-				select : getMobileLabSelect( true, true, true ),
-			} ) as unknown as IMobileLab;
+					select : getMobileLabSelect( true, true, true ),
+				} ) as unknown as IMobileLab;
+
+				await this.createPriceHistoryService.execute( tx, mobileLabId, null, currentPrice, 'mobileLab' );
+
+				return newMobileLab;
+			} );
 		} catch ( error ) {
 			if ( uploadedFiles.length > 0 ) {
 				try {
@@ -243,14 +265,26 @@ export class MobileLabsService {
 	}
 
 
-	async findOne( id : string, includesLabDto? : IncludesMobileLabDto ) : Promise<IMobileLab> {
+	async findOne(
+		id : string,
+		includesLabDto? : IncludesMobileLabDto,
+		getAllStatus : boolean = false
+	) : Promise<IMobileLab> {
 		try {
 			const includeFiles    = includesLabDto?.includeFiles ?? true;
 			const includeProducts = includesLabDto?.includeProducts ?? true;
 			const includeKits     = includesLabDto?.includeKits ?? true;
+			const dtoGetAllStatus = includesLabDto?.getAllStatus ?? false;
+			const isGetAll        = getAllStatus || dtoGetAllStatus || false;
+
+			const where : Prisma.MobileLabWhereInput = { id };
+
+			if ( !isGetAll ) {
+				where.active = true;
+			}
 
 			return await this.prisma.mobileLab.findUniqueOrThrow( {
-				where  : { id },
+				where  : where as any,
 				select : getMobileLabSelect( includeFiles, includeProducts, includeKits ),
 			} ) as unknown as IMobileLab;
 		} catch ( error ) {
@@ -260,52 +294,77 @@ export class MobileLabsService {
 
 
 	async update( id : string, updateMobileLabDto : UpdateMobileLabDto ) : Promise<IMobileLab> {
-		const { sku, name, categoryId, description, dimensions, active } = updateMobileLabDto;
+		const {
+			sku,
+			name,
+			categoryId,
+			description,
+			dimensions,
+			active,
+			currentPrice,
+			currentStock,
+			minStock,
+			maxStock,
+		} = updateMobileLabDto;
 
 		try {
-			// Validar existencia del laboratorio móvil
-			await this.prisma.mobileLab.findUniqueOrThrow( {
-				where : { id },
+			return await this.prisma.$transaction( async ( tx ) => {
+				// Validar existencia del laboratorio móvil
+				const existing = await tx.mobileLab.findUniqueOrThrow( {
+					where : { id },
+				} );
+
+				if ( sku ) {
+					const existingSku = await tx.mobileLab.findFirst( {
+						where : { sku, id : { not : id } },
+					} );
+
+					if ( existingSku ) {
+						throw new ConflictException( `Ya existe otro laboratorio móvil con el SKU "${ sku }"` );
+					}
+				}
+
+				if ( name ) {
+					const existingName = await tx.mobileLab.findFirst( {
+						where : { name, id : { not : id } },
+					} );
+
+					if ( existingName ) {
+						throw new ConflictException( `Ya existe otro laboratorio móvil con el nombre "${ name }"` );
+					}
+				}
+
+				if ( categoryId ) {
+					await tx.labCategory.findUniqueOrThrow( {
+						where : { id : categoryId },
+					} );
+				}
+
+				await this.createPriceHistoryService.execute(
+                    tx,
+                    id,
+                    existing.currentPrice,
+                    currentPrice,
+                    'mobileLab'
+                );
+
+				return await tx.mobileLab.update( {
+					where  : { id },
+					data   : {
+						sku,
+						name,
+						categoryId,
+						description,
+						dimensions,
+						active,
+						currentPrice,
+						currentStock,
+						minStock,
+						maxStock,
+					},
+					select : getMobileLabSelect( true, true, true ),
+				} ) as unknown as IMobileLab;
 			} );
-
-			if ( sku ) {
-				const existingSku = await this.prisma.mobileLab.findFirst( {
-					where : { sku, id : { not : id } },
-				} );
-
-				if ( existingSku ) {
-					throw new ConflictException( `Ya existe otro laboratorio móvil con el SKU "${ sku }"` );
-				}
-			}
-
-			if ( name ) {
-				const existingName = await this.prisma.mobileLab.findFirst( {
-					where : { name, id : { not : id } },
-				} );
-
-				if ( existingName ) {
-					throw new ConflictException( `Ya existe otro laboratorio móvil con el nombre "${ name }"` );
-				}
-			}
-
-			if ( categoryId ) {
-				await this.prisma.labCategory.findUniqueOrThrow( {
-					where : { id : categoryId },
-				} );
-			}
-
-			return await this.prisma.mobileLab.update( {
-				where  : { id },
-				data   : {
-					sku,
-					name,
-					categoryId,
-					description,
-					dimensions,
-					active,
-				},
-				select : getMobileLabSelect( true, true, true ),
-			} ) as unknown as IMobileLab;
 		} catch ( error ) {
 			throw PrismaException.catch( error, 'Mobile Lab' );
 		}
@@ -412,7 +471,7 @@ export class MobileLabsService {
 				},
 			} );
 
-			return await this.findOne( mobileLabId, { includeFiles : true } );
+			return await this.findOne( mobileLabId, { includeFiles : true }, true );
 		} catch ( error ) {
 			throw PrismaException.catch( error, 'Mobile Lab' );
 		}
@@ -450,7 +509,7 @@ export class MobileLabsService {
 				}
 			} );
 
-			return await this.findOne( mobileLabId, { includeFiles : true } );
+			return await this.findOne( mobileLabId, { includeFiles : true }, true );
 		} catch ( error ) {
 			throw PrismaException.catch( error, 'Mobile Lab' );
 		}
@@ -598,7 +657,7 @@ export class MobileLabsService {
 				)
 			);
 
-			return await this.findOne( mobileLabId, { includeProducts : true } );
+			return await this.findOne( mobileLabId, { includeProducts : true }, true );
 		} catch ( error ) {
 			throw PrismaException.catch( error, 'Mobile Lab' );
 		}
@@ -734,7 +793,7 @@ export class MobileLabsService {
 				)
 			);
 
-			return await this.findOne( mobileLabId, { includeKits : true } );
+			return await this.findOne( mobileLabId, { includeKits : true }, true );
 		} catch ( error ) {
 			throw PrismaException.catch( error, 'Mobile Lab' );
 		}
@@ -823,6 +882,111 @@ export class MobileLabsService {
 			} );
 
 			return { message : 'Kits eliminados del laboratorio móvil exitosamente' };
+		} catch ( error ) {
+			throw PrismaException.catch( error, 'Mobile Lab' );
+		}
+	}
+
+
+	async export( res : Response, exportMobileLabDto : ExportMobileLabDto ) : Promise<void> {
+		try {
+			const {
+				fileType,
+				filename,
+				query,
+				categories,
+				active,
+				getAllStatus,
+			} = exportMobileLabDto;
+
+			let where : Prisma.MobileLabWhereInput = {
+				...( categories && categories.length > 0 && { categoryId : { in : categories } } ),
+			};
+
+			if ( !getAllStatus ) {
+				where.active = active !== undefined ? active : true;
+			} else if ( active !== undefined ) {
+				where.active = active;
+			}
+
+			if ( query ) {
+				if ( query.toLowerCase().startsWith( this.SKU_PREFIX ) ) {
+					const skuWhere : Prisma.MobileLabWhereInput = {
+						...where,
+						sku : { contains : query, mode : 'insensitive' },
+					};
+					const count = await this.prisma.mobileLab.count( { where : skuWhere } );
+					if ( count > 0 ) {
+						where = skuWhere;
+					} else {
+						where = {
+							...where,
+							name : { contains : query, mode : 'insensitive' },
+						};
+					}
+				} else {
+					where = {
+						...where,
+						name : { contains : query, mode : 'insensitive' },
+					};
+				}
+			}
+
+			let finalFilename = filename;
+
+			if ( !finalFilename ) {
+				const now     = new Date( );
+				const year    = now.getFullYear( );
+				const month   = String( now.getMonth( ) + 1 ).padStart( 2, '0' );
+				const day     = String( now.getDate( ) ).padStart( 2, '0' );
+				const hours   = String( now.getHours( ) ).padStart( 2, '0' );
+				const minutes = String( now.getMinutes( ) ).padStart( 2, '0' );
+				finalFilename = `laboratorios_${ year }${ month }${ day }_${ hours }${ minutes }`;
+			}
+
+			const columns = [
+				{ header : 'SKU', key : 'sku', width : 15 },
+				{ header : 'Nombre', key : 'name', width : 30 },
+				{ header : 'Dimensiones', key : 'dimensions', width : 20 },
+				{ header : 'Categoría', key : 'category', width : 25 },
+				{ header : 'Estado', key : 'active', width : 12 },
+				{ header : 'Fecha Creación', key : 'createdAt', width : 20 },
+				{ header : 'Fecha Actualización', key : 'updatedAt', width : 20 },
+			];
+
+			const dataProvider = async ( skip : number, take : number ) => {
+				const labs = await this.prisma.mobileLab.findMany( {
+					where,
+					skip,
+					take,
+					select : {
+						sku        : true,
+						name       : true,
+						dimensions : true,
+						active     : true,
+						createdAt  : true,
+						updatedAt  : true,
+						category   : { select : { name : true } },
+					},
+					orderBy : { name : 'asc' },
+				} );
+
+				return labs.map( ( l ) => ( {
+					sku        : l.sku,
+					name       : l.name,
+					dimensions : l.dimensions,
+					category   : l.category?.name || '',
+					active     : l.active,
+					createdAt  : l.createdAt,
+					updatedAt  : l.updatedAt,
+				} ) );
+			};
+
+			if ( fileType === FileType.EXCEL ) {
+				await this.exportService.exportToExcelStream( res, finalFilename, columns, dataProvider );
+			} else {
+				await this.exportService.exportToPdfStream( res, finalFilename, 'Reporte de Laboratorios Móviles', columns, dataProvider );
+			}
 		} catch ( error ) {
 			throw PrismaException.catch( error, 'Mobile Lab' );
 		}

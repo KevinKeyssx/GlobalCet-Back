@@ -1,4 +1,5 @@
 import { Injectable, ConflictException, BadRequestException } from '@nestjs/common';
+import { Response } from 'express';
 
 import { ulid } from 'ulid';
 
@@ -15,10 +16,12 @@ import {
     FileManagerService,
     ResponeFileUpload
 }                                   from '@services/file-manager.service';
+import { ExportService }            from '@services/export.service';
 import { PaginatedResult }          from '@common/interfaces/paginated-result.interface';
 import { PrismaException }          from '@prisma/prisma-catch';
 import { PrismaService }            from '@prisma/prisma.service';
 import { Kit, Prisma }              from '@prisma/client';
+import { CreatePriceHistoryService }  from '@common/service/create-price-history.service';
 import { ENVS }                     from '@config/envs';
 import { IKit, IKitProduct }        from '@kits/models/kit.interface';
 import { CreateKitDto }             from '@kits/dto/create-kit.dto';
@@ -29,6 +32,8 @@ import { DeleteKitFilesDto }        from '@kits/dto/delete-kit-files.dto';
 import { KitProductDto }            from '@kits/dto/kit-product.dto';
 import { DeleteKitProductsDto }     from '@kits/dto/delete-kit-products.dto';
 import { KitPaginationFilterDto }   from '@kits/dto/pagination-filter.dto';
+import { ExportKitDto }             from '@kits/dto/export-kit.dto';
+import { FileType }                 from '@common/dto/file-type.dto';
 import { IncludesKitDto }           from '@kits/dto/includes.dto';
 import { SubCategoryOrderField }    from '@common/dto/pagination.dto';
 import { getKitSelect }             from '@kits/utils/kit-select.utils';
@@ -39,24 +44,36 @@ import { getKitSelect }             from '@kits/utils/kit-select.utils';
 export class KitsService {
 
 	constructor(
-		private readonly prisma: PrismaService,
-		private readonly fileManagerService: FileManagerService,
+		private readonly prisma                    : PrismaService,
+		private readonly fileManagerService        : FileManagerService,
+		private readonly createPriceHistoryService : CreatePriceHistoryService,
+		private readonly exportService             : ExportService,
 	) {}
 
 
-	async create( createKitDto: CreateKitDto, files?: Express.Multer.File[] ): Promise<IKit> {
-		try {
-			const {
-				sku,
-				name,
-				description,
-				categoryId,
-				active,
-				filesInfo,
-				products,
-				files: _,
-			} = createKitDto;
 
+
+	async create( createKitDto: CreateKitDto, files?: Express.Multer.File[] ): Promise<IKit> {
+		const {
+			sku,
+			name,
+			description,
+			categoryId,
+			active,
+            currentPrice,
+            currentStock,
+            minStock,
+            maxStock,
+			filesInfo,
+			products,
+			files: _,
+		} = createKitDto;
+
+		const kitId = ulid();
+
+		let uploadedFiles: Array<ResponeFileUpload> = [];
+
+		try {
 			// Validar unicidad de SKU
 			const existingSku = await this.prisma.kit.findUnique( {
 				where : { sku },
@@ -78,11 +95,7 @@ export class KitsService {
 			// Validar existencia de categoría
 			await this.prisma.kitCategory.findUniqueOrThrow( {
 				where : { id : categoryId },
-			});
-
-			const kitId = ulid();
-
-			let uploadedFiles: Array<ResponeFileUpload> = [];
+			} );
 
 			if ( files && files.length > 0 ) {
 				const response = await this.fileManagerService.uploadMultiple( files, 'kits', kitId );
@@ -124,28 +137,46 @@ export class KitsService {
 				quantity  : item.quantity ?? 1,
 			} ) ) || [];
 
-			return await this.prisma.kit.create( {
-				data : {
-					id : kitId,
-					sku,
-					name,
-					description,
-					categoryId,
-					active,
-					...( filesCreate.length > 0 && {
-						files : {
-							create : filesCreate,
-						},
-					} ),
-					...( productsCreate.length > 0 && {
-						products : {
-							create : productsCreate,
-						},
-					} ),
-				},
-				select : getKitSelect( true, true ),
-			} ) as unknown as IKit;
+			return await this.prisma.$transaction( async ( tx ) => {
+				const newKit = await tx.kit.create( {
+					data : {
+						id : kitId,
+						sku,
+						name,
+						description,
+						categoryId,
+						active,
+                        currentPrice,
+                        currentStock,
+                        minStock,
+                        maxStock,
+						...( filesCreate.length > 0 && {
+							files : {
+								create : filesCreate,
+							},
+						} ),
+						...( productsCreate.length > 0 && {
+							products : {
+								create : productsCreate,
+							},
+						} ),
+					},
+					select : getKitSelect( true, true ),
+				} ) as unknown as IKit;
+
+				await this.createPriceHistoryService.execute( tx, kitId, null, currentPrice, 'kit' );
+
+				return newKit;
+			} );
 		} catch ( error ) {
+			if ( uploadedFiles.length > 0 ) {
+				try {
+					await this.fileManagerService.deleteFolder( 'kits', kitId );
+				} catch ( deleteError ) {
+					console.error( 'Error al eliminar archivos de Cloudinary para el Kit:', deleteError );
+				}
+			}
+
 			throw PrismaException.catch( error, 'Kits' );
 		}
 	}
@@ -234,9 +265,11 @@ export class KitsService {
 		try {
 			const includeFiles    = includesKitDto?.includeFiles ?? true;
 			const includeProducts = includesKitDto?.includeProducts ?? true;
+			const dtoGetAllStatus = includesKitDto?.getAllStatus ?? false;
+			const isGetAll        = getAllStatus || dtoGetAllStatus || false;
 			const where : Prisma.KitWhereInput = { id };
 
-			if ( !getAllStatus ) {
+			if ( !isGetAll ) {
 				where.active = true;
 			}
 
@@ -259,46 +292,61 @@ export class KitsService {
 				...data
 			} = updateKitDto;
 
-			// Validar unicidad de SKU si cambia
-			if ( data.sku ) {
-				const existingSku = await this.prisma.kit.findFirst( {
-					where : {
-						sku : data.sku,
-						id  : { not : id },
-					},
+			return await this.prisma.$transaction( async ( tx ) => {
+				// Validar existencia del kit y obtener su precio actual
+				const existing = await tx.kit.findUniqueOrThrow( {
+					where : { id },
 				} );
 
-				if ( existingSku ) {
-					throw new ConflictException( `Ya existe otro kit con el SKU "${ data.sku }"` );
+				// Validar unicidad de SKU si cambia
+				if ( data.sku ) {
+					const existingSku = await tx.kit.findFirst( {
+						where : {
+							sku : data.sku,
+							id  : { not : id },
+						},
+					} );
+
+					if ( existingSku ) {
+						throw new ConflictException( `Ya existe otro kit con el SKU "${ data.sku }"` );
+					}
 				}
-			}
 
-			// Validar unicidad de Nombre si cambia
-			if ( data.name ) {
-				const existingName = await this.prisma.kit.findFirst( {
-					where : {
-						name : data.name,
-						id   : { not : id },
-					},
-				} );
+				// Validar unicidad de Nombre si cambia
+				if ( data.name ) {
+					const existingName = await tx.kit.findFirst( {
+						where : {
+							name : data.name,
+							id   : { not : id },
+						},
+					} );
 
-				if ( existingName ) {
-					throw new ConflictException( `Ya existe otro kit con el nombre "${ data.name }"` );
+					if ( existingName ) {
+						throw new ConflictException( `Ya existe otro kit con el nombre "${ data.name }"` );
+					}
 				}
-			}
 
-			// Validar existencia de categoría si cambia
-			if ( data.categoryId ) {
-				await this.prisma.kitCategory.findUniqueOrThrow( {
-					where : { id : data.categoryId },
-				} );
-			}
+				// Validar existencia de categoría si cambia
+				if ( data.categoryId ) {
+					await tx.kitCategory.findUniqueOrThrow( {
+						where : { id : data.categoryId },
+					} );
+				}
 
-			return await this.prisma.kit.update( {
-				where  : { id },
-				data,
-				select : getKitSelect( true, true ),
-			} ) as unknown as IKit;
+				await this.createPriceHistoryService.execute(
+                    tx,
+                    id,
+                    existing.currentPrice,
+                    data.currentPrice,
+                    'kit'
+                );
+
+				return await tx.kit.update( {
+					where  : { id },
+					data,
+					select : getKitSelect( true, true ),
+				} ) as unknown as IKit;
+			} );
 		} catch ( error ) {
 			throw PrismaException.catch( error, 'Kits' );
 		}
@@ -701,6 +749,113 @@ export class KitsService {
 			} );
 
 			return { message : 'Productos eliminados del kit exitosamente' };
+		} catch ( error ) {
+			throw PrismaException.catch( error, 'Kits' );
+		}
+	}
+
+
+	async export( res: Response, exportKitDto: ExportKitDto ): Promise<void> {
+		try {
+			const {
+				fileType,
+				filename,
+				query,
+				categories,
+				active,
+				getAllStatus,
+			} = exportKitDto;
+
+			let where: Prisma.KitWhereInput = {
+				...( categories && categories.length > 0 && { categoryId : { in : categories } } ),
+			};
+
+			if ( !getAllStatus ) {
+				where.active = active !== undefined ? active : true;
+			} else if ( active !== undefined ) {
+				where.active = active;
+			}
+
+			if ( query ) {
+				const normalized = normalizeText( query );
+				const pattern    = `%${ normalized }%`;
+
+				if ( query.toLowerCase( ).startsWith( 'c' ) ) {
+					const skuIds = await searchKitIds( this.prisma, pattern, true );
+
+					if ( skuIds.length > 0 ) {
+						where = {
+							...where,
+							id : { in : skuIds },
+						};
+					} else {
+						const nameIds = await searchKitIds( this.prisma, pattern, false );
+						where = {
+							...where,
+							id : { in : nameIds },
+						};
+					}
+				} else {
+					const nameIds = await searchKitIds( this.prisma, pattern, false );
+					where = {
+						...where,
+						id : { in : nameIds },
+					};
+				}
+			}
+
+			let finalFilename = filename;
+
+			if ( !finalFilename ) {
+				const now     = new Date( );
+				const year    = now.getFullYear( );
+				const month   = String( now.getMonth( ) + 1 ).padStart( 2, '0' );
+				const day     = String( now.getDate( ) ).padStart( 2, '0' );
+				const hours   = String( now.getHours( ) ).padStart( 2, '0' );
+				const minutes = String( now.getMinutes( ) ).padStart( 2, '0' );
+				finalFilename = `kits_${ year }${ month }${ day }_${ hours }${ minutes }`;
+			}
+
+			const columns = [
+				{ header : 'SKU', key : 'sku', width : 15 },
+				{ header : 'Nombre', key : 'name', width : 30 },
+				{ header : 'Categoría', key : 'category', width : 25 },
+				{ header : 'Estado', key : 'active', width : 12 },
+				{ header : 'Fecha Creación', key : 'createdAt', width : 20 },
+				{ header : 'Fecha Actualización', key : 'updatedAt', width : 20 },
+			];
+
+			const dataProvider = async ( skip: number, take: number ) => {
+				const kits = await this.prisma.kit.findMany( {
+					where,
+					skip,
+					take,
+					select : {
+						sku       : true,
+						name      : true,
+						active    : true,
+						createdAt : true,
+						updatedAt : true,
+						category  : { select : { name : true } },
+					},
+					orderBy : { name : 'asc' },
+				} );
+
+				return kits.map( ( k ) => ( {
+					sku       : k.sku,
+					name      : k.name,
+					category  : k.category?.name || '',
+					active    : k.active,
+					createdAt : k.createdAt,
+					updatedAt : k.updatedAt,
+				} ) );
+			};
+
+			if ( fileType === FileType.EXCEL ) {
+				await this.exportService.exportToExcelStream( res, finalFilename, columns, dataProvider );
+			} else {
+				await this.exportService.exportToPdfStream( res, finalFilename, 'Reporte de Kits', columns, dataProvider );
+			}
 		} catch ( error ) {
 			throw PrismaException.catch( error, 'Kits' );
 		}

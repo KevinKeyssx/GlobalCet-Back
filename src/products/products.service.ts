@@ -1,4 +1,5 @@
-import { ConflictException, Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, ConflictException } from '@nestjs/common';
+import { Response } from 'express';
 
 import { ulid } from 'ulid';
 
@@ -10,19 +11,23 @@ import {
 import {
 	normalizeText,
 	searchProductIds
-} from '@common/utils/search.utils';
+}                                       from '@common/utils/search.utils';
 import {
     FileManagerService,
     ResponeFileUpload
 }                                       from '@services/file-manager.service';
+import { ExportService }                from '@services/export.service';
 import { PaginatedResult }              from '@common/interfaces/paginated-result.interface';
 import { ENVS }                         from '@config/envs';
 import { Prisma, Product }              from '@prisma/client';
 import { PrismaException }              from '@prisma/prisma-catch';
 import { PrismaService }                from '@prisma/prisma.service';
+import { CreatePriceHistoryService }    from '@common/service/create-price-history.service';
 import { CreateProductDto }             from '@products/dto/create-product.dto';
 import { UpdateProductDto }             from '@products/dto/update-product.dto';
 import { ProductPaginationFilterDto }   from '@products/dto/pagination-filter.dto';
+import { ExportProductDto }             from '@products/dto/export-product.dto';
+import { FileType }                     from '@common/dto/file-type.dto';
 import { IProduct }                     from '@products/models/product.interface';
 import { UpdateProductImagesDto }       from '@products/dto/update-product-images.dto';
 import { UploadProductImagesDto }       from '@products/dto/upload-product-images.dto';
@@ -32,8 +37,6 @@ import { SubCategoryOrderField }        from '@common/dto/pagination.dto';
 import { getProductSelect }             from '@products/utils/product-select.utils';
 
 
-
-
 @Injectable()
 export class ProductsService {
 
@@ -41,10 +44,15 @@ export class ProductsService {
 
 
 	constructor(
-		private readonly prisma: PrismaService,
-        private readonly fileManagerService: FileManagerService,
+		private readonly prisma                    : PrismaService,
+		private readonly fileManagerService        : FileManagerService,
+		private readonly createPriceHistoryService : CreatePriceHistoryService,
+		private readonly exportService             : ExportService,
 	) {}
-	async create(
+
+
+
+    async create(
         createProductDto: CreateProductDto,
         files?: Express.Multer.File[],
     ): Promise<IProduct> {
@@ -62,6 +70,7 @@ export class ProductsService {
         let uploadedImages: Array<ResponeFileUpload> = [];
 
         try {
+            // Validaciones previas antes de subir archivos
             const skuExists = await this.prisma.product.findUnique({
                 where  : { sku: data.sku },
                 select : { sku: true },
@@ -69,6 +78,15 @@ export class ProductsService {
 
             if ( skuExists ) {
                 throw new ConflictException( `El SKU '${ data.sku }' ya existe` );
+            }
+
+            const nameExists = await this.prisma.product.findUnique({
+                where  : { name: data.name },
+                select : { name: true },
+            });
+
+            if ( nameExists ) {
+                throw new ConflictException( `Ya existe un producto con el nombre '${ data.name }'` );
             }
 
             if ( files && files.length > 0 ) {
@@ -110,18 +128,24 @@ export class ProductsService {
                 };
             });
 
-			return await this.prisma.product.create({
-				data : {
-                    id : productId,
-                    ...data,
-                    ...( imagesCreate.length > 0 && {
-                        files : {
-                            create : imagesCreate,
-                        }
-                    }),
-				},
-				select : getProductSelect( includeFiles, includeKits, includeMobileLabs ),
-			}) as unknown as IProduct;
+            return await this.prisma.$transaction( async ( tx ) => {
+                const newProduct = await tx.product.create({
+                    data : {
+                        id : productId,
+                        ...data,
+                        ...( imagesCreate.length > 0 && {
+                            files : {
+                                create : imagesCreate,
+                            }
+                        }),
+                    },
+                    select : getProductSelect( includeFiles, includeKits, includeMobileLabs ),
+                }) as unknown as IProduct;
+
+                await this.createPriceHistoryService.execute( tx, productId, null, data.currentPrice, 'product' );
+
+                return newProduct;
+            });
 		} catch ( error ) {
             if ( uploadedImages.length > 0 ) {
                 try {
@@ -257,18 +281,19 @@ export class ProductsService {
 
 
 	async findOne(
-        id: string,
-        includesItemsDto: IncludesItemsDto,
-        getAllStatus: boolean = false
-    ): Promise<IProduct> {
+		id: string,
+		includesItemsDto: IncludesItemsDto,
+		getAllStatus: boolean = false
+	): Promise<IProduct> {
 		try {
-			const { includeFiles, includeKits, includeMobileLabs } = includesItemsDto;
+			const { includeFiles, includeKits, includeMobileLabs, getAllStatus: dtoGetAllStatus } = includesItemsDto;
+			const isGetAll = getAllStatus || dtoGetAllStatus || false;
 
-            const where : Prisma.ProductWhereInput = { id };
+			const where : Prisma.ProductWhereInput = { id };
 
-            if ( !getAllStatus ) {
-                where.active = true;
-            }
+			if ( !isGetAll ) {
+				where.active = true;
+			}
 
 			return await this.prisma.product.findUniqueOrThrow( {
 				where  : where as any,
@@ -287,14 +312,57 @@ export class ProductsService {
 				includeKits,
 				includeMobileLabs,
 				files,
+                getAllStatus,
 				...data
 			} = updateProductDto;
 
-			return await this.prisma.product.update( {
-				where  : { id },
-				data,
-				select : getProductSelect( includeFiles, includeKits, includeMobileLabs ),
-			} ) as unknown as IProduct;
+			return await this.prisma.$transaction( async ( tx ) => {
+				const existing = await tx.product.findUniqueOrThrow( {
+					where : { id },
+				});
+
+				// Validar unicidad de SKU si cambia
+				if ( data.sku ) {
+					const existingSku = await tx.product.findFirst({
+						where : {
+							sku : data.sku,
+							id  : { not : id },
+						},
+					});
+
+					if ( existingSku ) {
+						throw new ConflictException( `Ya existe otro producto con el SKU "${ data.sku }"` );
+					}
+				}
+
+				// Validar unicidad de Nombre si cambia
+				if ( data.name ) {
+					const existingName = await tx.product.findFirst({
+						where : {
+							name : data.name,
+							id   : { not : id },
+						},
+					});
+
+					if ( existingName ) {
+						throw new ConflictException( `Ya existe otro producto con el nombre "${ data.name }"` );
+					}
+				}
+
+				await this.createPriceHistoryService.execute(
+                    tx,
+                    id,
+                    existing.currentPrice,
+                    data.currentPrice,
+                    'product'
+                );
+
+				return await tx.product.update( {
+					where  : { id },
+					data,
+					select : getProductSelect( includeFiles, includeKits, includeMobileLabs ),
+				}) as unknown as IProduct;
+			});
 		} catch ( error ) {
 			throw PrismaException.catch( error, 'Product' );
 		}
@@ -595,5 +663,127 @@ export class ProductsService {
             throw PrismaException.catch( error, 'Product' );
         }
     }
+
+
+	async export( res: Response, exportProductDto: ExportProductDto ): Promise<void> {
+		try {
+			const {
+				fileType,
+				filename,
+				query,
+				materials,
+				active,
+				subcategories,
+				getAllStatus,
+			} = exportProductDto;
+
+			let where: Prisma.ProductWhereInput = {
+				...( materials && materials.length > 0 && { materialId : { in : materials } } ),
+				...( subcategories && subcategories.length > 0 && { subcategoryId : { in : subcategories } } ),
+			};
+
+			if ( !getAllStatus ) {
+				where.active = active !== undefined ? active : true;
+			} else if ( active !== undefined ) {
+				where.active = active;
+			}
+
+			if ( query ) {
+				const normalized = normalizeText( query );
+				const pattern    = `%${ normalized }%`;
+
+				if ( query.toLowerCase( ).startsWith( this.SKU_PREFIX ) ) {
+					const skuIds = await searchProductIds( this.prisma, pattern, true );
+
+					if ( skuIds.length > 0 ) {
+						where = {
+							...where,
+							id : { in : skuIds },
+						};
+					} else {
+						const nameIds = await searchProductIds( this.prisma, pattern, false );
+						where = {
+							...where,
+							id : { in : nameIds },
+						};
+					}
+				} else {
+					const nameIds = await searchProductIds( this.prisma, pattern, false );
+					where = {
+						...where,
+						id : { in : nameIds },
+					};
+				}
+			}
+
+			let finalFilename = filename;
+
+			if ( !finalFilename ) {
+				const now     = new Date( );
+				const year    = now.getFullYear( );
+				const month   = String( now.getMonth( ) + 1 ).padStart( 2, '0' );
+				const day     = String( now.getDate( ) ).padStart( 2, '0' );
+				const hours   = String( now.getHours( ) ).padStart( 2, '0' );
+				const minutes = String( now.getMinutes( ) ).padStart( 2, '0' );
+				finalFilename = `productos_${ year }${ month }${ day }_${ hours }${ minutes }`;
+			}
+
+			const columns = [
+				{ header : 'SKU', key : 'sku', width : 15 },
+				{ header : 'Nombre', key : 'name', width : 30 },
+				{ header : 'Material', key : 'material', width : 20 },
+				{ header : 'Especificaciones Técnicas', key : 'technical_specs', width : 40 },
+				{ header : 'Estado', key : 'active', width : 12 },
+				{ header : 'Fecha Creación', key : 'createdAt', width : 20 },
+				{ header : 'Fecha Actualización', key : 'updatedAt', width : 20 },
+			];
+
+			const dataProvider = async ( skip: number, take: number ) => {
+				const products = await this.prisma.product.findMany( {
+					where,
+					skip,
+					take,
+					select : {
+						sku             : true,
+						name            : true,
+						active          : true,
+						createdAt       : true,
+						updatedAt       : true,
+						material        : { select : { name : true } },
+						technical_specs : true,
+					},
+					orderBy : { name : 'asc' },
+				} );
+
+				return products.map( ( p ) => {
+					let specsText = '';
+
+					if ( p.technical_specs && typeof p.technical_specs === 'object' ) {
+						specsText = Object.entries( p.technical_specs )
+							.map( ( [ k, v ] ) => `${ k }: ${ v }` )
+							.join( ', ' );
+					}
+
+					return {
+						sku             : p.sku,
+						name            : p.name,
+						material        : p.material?.name || '',
+						technical_specs : specsText,
+						active          : p.active,
+						createdAt       : p.createdAt,
+						updatedAt       : p.updatedAt,
+					};
+				} );
+			};
+
+			if ( fileType === FileType.EXCEL ) {
+				await this.exportService.exportToExcelStream( res, finalFilename, columns, dataProvider );
+			} else {
+				await this.exportService.exportToPdfStream( res, finalFilename, 'Reporte de Productos', columns, dataProvider );
+			}
+		} catch ( error ) {
+			throw PrismaException.catch( error, 'Product' );
+		}
+	}
 
 }
