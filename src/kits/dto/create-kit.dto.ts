@@ -19,11 +19,13 @@ import { NameDto }          from '@common/dto/name.dto';
 import { UploadFilesDto }   from '@common/dto/upload-files.dto';
 import { FileConfigDto }    from '@common/dto/file-config.dto';
 import { KitProductDto }    from '@kits/dto/kit-product.dto';
+import { PriceStock }       from '@common/dto/price-stock.dto';
 
 
 export class CreateKitDto extends IntersectionType(
-	UploadFilesDto,
-	NameDto,
+    UploadFilesDto,
+    NameDto,
+    PriceStock
 ) {
 
 	@ApiProperty( {

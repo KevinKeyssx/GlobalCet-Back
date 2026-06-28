@@ -20,11 +20,13 @@ import { UploadFilesDto }       from '@common/dto/upload-files.dto';
 import { FileConfigDto }        from '@common/dto/file-config.dto';
 import { MobileLabProductDto }  from '@mobile-labs/dto/mobile-lab-product.dto';
 import { MobileLabKitDto }      from './mobile-lab-kit.dto';
+import { PriceStock }           from '@common/dto/price-stock.dto';
 
 
 export class CreateMobileLabDto extends IntersectionType(
-	UploadFilesDto,
-	NameDto,
+    UploadFilesDto,
+    NameDto,
+    PriceStock
 ) {
 
 	@ApiProperty( {

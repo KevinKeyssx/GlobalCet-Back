@@ -9,18 +9,24 @@ import {
 	IsArray,
 	ValidateNested,
 }                       from 'class-validator';
-import { Transform, Type, plainToInstance } from 'class-transformer';
+import {
+    Transform,
+    Type,
+    plainToInstance
+}                       from 'class-transformer';
 
-import { NameDto }                  from '@common/dto/name.dto';
-import { UploadFilesDto }           from '@common/dto/upload-files.dto';
-import { IncludesItemsDto }         from '@products/dto/includes-items.dto';
-import { FileConfigDto }            from '@common/dto/file-config.dto';
+import { NameDto }          from '@common/dto/name.dto';
+import { UploadFilesDto }   from '@common/dto/upload-files.dto';
+import { IncludesItemsDto } from '@products/dto/includes-items.dto';
+import { FileConfigDto }    from '@common/dto/file-config.dto';
+import { PriceStock }       from '@common/dto/price-stock.dto';
 
 
 export class CreateProductDto extends IntersectionType(
 	UploadFilesDto,
 	NameDto,
 	IncludesItemsDto,
+    PriceStock
 ) {
 
 	@ApiPropertyOptional( {
