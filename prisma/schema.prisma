@@ -130,9 +130,15 @@ model Product {
     materialId  String
     material    Material @relation(fields: [materialId], references: [id])
 
+    currentPrice   Decimal?
+    currentStock   Int?      @default(54)
+    minStock       Int?      @default(54)
+    maxStock       Int?      @default(100)
+
     inKits          KitProduct[]
     inMobileLabs    MobileLabProduct[]
     files           ProductFile[]
+    prices          PriceHistory[]
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
@@ -169,11 +175,17 @@ model Kit {
     name        String    @unique
     description String?
 
+    currentPrice   Decimal?
+    currentStock   Int?      @default(0)
+    minStock       Int?      @default(0)
+    maxStock       Int?      @default(0)
+
     active          Boolean  @default(true)
 
     products    KitProduct[]
     mobileLabs  MobileLabKit[]
     files       KitFile[]
+    prices      PriceHistory[]
 
     categoryId  String
     category    KitCategory @relation(fields: [categoryId], references: [id])
@@ -228,11 +240,17 @@ model MobileLab {
     description String?
     dimensions  String?
 
+    currentPrice   Decimal?
+    currentStock   Int?      @default(0)
+    minStock       Int?      @default(0)
+    maxStock       Int?      @default(0)
+
     active      Boolean @default(true)
 
     products    MobileLabProduct[]
     kits        MobileLabKit[]
     files       MobileLabFile[]
+    prices      PriceHistory[]
 
     categoryId  String
     category    LabCategory @relation(fields: [categoryId], references: [id])
@@ -301,4 +319,52 @@ model LabCategory {
     updatedAt   DateTime    @updatedAt
 
     @@map("lab_categories")
+}
+
+
+enum QuoteStatus {
+    PENDING
+    IN_REVIEW
+    SENT_TO_CLIENT
+    ACCEPTED
+    REJECTED
+    COMPLETED
+    CANCELLED
+}
+
+
+model Quote {
+    id           String       @id @default(ulid())
+    quoteNumber  String       @unique // Ej: GC-2026-001
+    clientData   Json         // { companyName, taxId (rut), address, contactName, email }
+    items        Json         // Snapshot: [ { id, name, priceAtMoment, quantity, type } ]
+    status       QuoteStatus  @default(PENDING)
+    adminNotes   String?      @db.Text
+    createdAt    DateTime     @default(now())
+    updatedAt    DateTime     @updatedAt
+
+    @@map("quotes")
+}
+
+
+model PriceHistory {
+    id              String            @id @default(ulid())
+    price           Decimal           // Decimal precision for currency
+    validFrom       DateTime          @default(now())
+
+    // Optional relations (a history record belongs to either a Product, Kit, OR MobileLab)
+    productId       String?
+    product         Product?          @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+    kitId           String?
+    kit             Kit?              @relation(fields: [kitId], references: [id], onDelete: Cascade)
+
+    mobileLabId     String?
+    mobileLab       MobileLab?        @relation(fields: [mobileLabId], references: [id], onDelete: Cascade)
+
+    @@index([productId])
+    @@index([kitId])
+    @@index([mobileLabId])
+
+    @@map("price_histories")
 }
