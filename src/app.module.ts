@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { GlobalSearchesModule } from './global-searches/global-searches.module';
+import { QuotesModule } from './quotes/quotes.module';
+import { PriceHistoryModule } from './price-history/price-history.module';
 import { UsersModule }          from './users/users.module';
 import { DuplicatesModule }     from './duplicates/duplicates.module';
 
@@ -13,6 +15,7 @@ import { MaterialsModule }      from '@materials/materials.module';
 import { KitCategoriesModule }  from '@kit-categories/kit-categories.module';
 import { LabCategoriesModule }  from '@lab-categories/lab-categories.module';
 import { PrismaModule }         from '@prisma/prisma.module';
+import { ExportModule }         from './services/export.module';
 
 
 @Module({
@@ -28,7 +31,10 @@ import { PrismaModule }         from '@prisma/prisma.module';
         LabCategoriesModule,
         GlobalSearchesModule,
         UsersModule,
-        DuplicatesModule
+        DuplicatesModule,
+        QuotesModule,
+        PriceHistoryModule,
+        ExportModule
     ],
     controllers : [ AppController ],
 })
