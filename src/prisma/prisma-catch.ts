@@ -23,7 +23,7 @@ export class PrismaException {
     static readonly #logger = new Logger( PrismaException.name );
 
     static catch( exception: any, message?: string ) {
-        const response = exception?.meta?.driverAdapterError?.cause?.originalMessage || 'Unknown error';
+        const response = exception?.meta?.driverAdapterError?.cause?.originalMessage || exception.message || 'Ocurrió una explosión, ya estamos modificando la fórmula.';
 
         if ( exception.status === 400 ) {
             this.#logger.error( response );
