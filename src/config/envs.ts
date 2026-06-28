@@ -19,6 +19,12 @@ interface EnvVars {
     FILE_MANAGER_QUALITY        : number;
     FILE_MANAGER_MAX_RETRIES    : number;
     FILE_MANAGER_RETRY_DELAY    : number;
+    ALLOW_NEGATIVE_STOCK        : boolean;
+
+    EMAIL_FROM      : string;
+    RESEND_API_KEY  : string;
+    ADMIN_EMAILS    : string;
+    ABUSE_TO: string;
 }
 
 
@@ -39,6 +45,12 @@ const envsSchema = joi.object({
     FILE_MANAGER_QUALITY                    : joi.number().optional(),
     FILE_MANAGER_MAX_RETRIES                : joi.number().optional(),
     FILE_MANAGER_RETRY_DELAY                : joi.number().optional(),
+    ALLOW_NEGATIVE_STOCK                    : joi.boolean().default( true ),
+
+    EMAIL_FROM      : joi.string().required(),
+    RESEND_API_KEY  : joi.string().required(),
+    ADMIN_EMAILS    : joi.string().required(),
+    ABUSE_TO       : joi.string().required(),
 })
 .unknown( true );
 
@@ -70,5 +82,13 @@ export const ENVS = {
         QUALITY                         : envVars.FILE_MANAGER_QUALITY,
         MAX_RETRIES                     : envVars.FILE_MANAGER_MAX_RETRIES,
         RETRY_DELAY                     : envVars.FILE_MANAGER_RETRY_DELAY,
+    },
+    ALLOW_NEGATIVE_STOCK : envVars.ALLOW_NEGATIVE_STOCK,
+
+    EMAIL : {
+        FROM           : envVars.EMAIL_FROM,
+        RESEND_API_KEY : envVars.RESEND_API_KEY,
+        ADMINS         : envVars.ADMIN_EMAILS.split( ',' ),
+        ABUSE_TO       : envVars.ABUSE_TO,
     },
 }
