@@ -22,7 +22,6 @@ import {
 } from '@common/utils/search.utils';
 
 
-
 @Injectable()
 export class GlobalSearchesService {
 
@@ -581,4 +580,3 @@ export class GlobalSearchesService {
 	}
 
 }
-
