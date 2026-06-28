@@ -53,3 +53,15 @@ export interface IMobileLab {
 	createdAt   : Date;
 	updatedAt   : Date;
 }
+
+
+export interface IMobileLabExport {
+	sku        : string;
+	name       : string;
+	dimensions : string | null;
+	active     : boolean;
+	category   : string;
+	createdAt  : Date;
+	updatedAt  : Date;
+}
+
