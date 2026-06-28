@@ -36,3 +36,14 @@ export interface IKit {
 	products?   : IKitProduct[];
 	category?   : any;
 }
+
+
+export interface IKitExport {
+	sku       : string;
+	name      : string;
+	active    : boolean;
+	category  : string;
+	createdAt : Date;
+	updatedAt : Date;
+}
+
