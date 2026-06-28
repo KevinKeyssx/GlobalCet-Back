@@ -16,6 +16,10 @@ export function getProductSelect(
 		active			: true,
 		createdAt		: true,
 		updatedAt		: true,
+        currentPrice    : true,
+        currentStock    : true,
+        minStock        : true,
+        maxStock        : true,
 		subcategory		: {
 			select : {
 				id		: true,

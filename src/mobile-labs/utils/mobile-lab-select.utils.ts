@@ -7,15 +7,19 @@ export function getMobileLabSelect(
 	includeKits		: boolean
 ): Prisma.MobileLabSelect {
 	return {
-		id			: true,
-		sku			: true,
-		name		: true,
-		description	: true,
-		dimensions	: true,
-		active		: true,
-		categoryId	: true,
-		createdAt	: true,
-		updatedAt	: true,
+		id		        : true,
+		sku		        : true,
+		name	        : true,
+		description     : true,
+		dimensions      : true,
+		active	        : true,
+		categoryId      : true,
+		createdAt       : true,
+		updatedAt       : true,
+        currentPrice    : true,
+        currentStock    : true,
+        minStock        : true,
+        maxStock        : true,
 		files		: {
 			where	: includeFiles ? {} : { isMain : true },
 			select	: {

@@ -6,14 +6,18 @@ export function getKitSelect(
 	includeProducts	: boolean
 ): Prisma.KitSelect {
 	return {
-		id			: true,
-		sku			: true,
-		name		: true,
-		description	: true,
-		active		: true,
-		categoryId	: true,
-		createdAt	: true,
-		updatedAt	: true,
+		id		        : true,
+		sku		        : true,
+		name	        : true,
+		description     : true,
+		active	        : true,
+		categoryId      : true,
+		createdAt       : true,
+		updatedAt       : true,
+        currentPrice    : true,
+        currentStock    : true,
+        minStock        : true,
+        maxStock        : true,
 		files		: {
 			where	: includeFiles ? {} : { isMain : true },
 			select	: {
