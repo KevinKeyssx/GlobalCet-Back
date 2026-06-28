@@ -26,4 +26,14 @@ export class IncludesKitDto {
 	@Transform( ( { value } ) => value === 'true' || value === true )
 	includeProducts?: boolean = false;
 
+	@ApiPropertyOptional( {
+		description : 'Obtener el kit sin filtrar por estado activo',
+		example     : false,
+		default     : false,
+	} )
+	@IsOptional()
+	@IsBoolean()
+	@Transform( ( { value } ) => value === 'true' || value === true )
+	getAllStatus?: boolean = false;
+
 }
