@@ -7,8 +7,8 @@ import {
 	IsString,
 	Length,
 	Min,
-}                       from 'class-validator';
-import { Type }         from 'class-transformer';
+}               from 'class-validator';
+import { Type } from 'class-transformer';
 
 
 export class KitProductDto {
