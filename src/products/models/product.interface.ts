@@ -48,3 +48,15 @@ export interface IInMobileLab {
 		dimensions  : string | null;
 	};
 }
+
+
+export interface IProductExport {
+	sku             : string;
+	name            : string;
+	material        : string;
+	technical_specs : string;
+	active          : boolean;
+	createdAt       : Date;
+	updatedAt       : Date;
+}
+
