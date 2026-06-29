@@ -61,6 +61,7 @@ export class ProductsService {
             includeKits,
             includeMobileLabs,
             imagesInfo,
+            getAllStatus,
             files: _,
             ...data
         } = createProductDto;
