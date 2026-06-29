@@ -1,40 +1,44 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { Type } from "class-transformer";
-import { IsNumber } from "class-validator";
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { Type }                 from 'class-transformer';
+import { IsNumber, IsOptional } from 'class-validator';
 
 
 export class PriceStock {
 
-    @ApiProperty( {
-		description : 'Product price',
-		example     : 10,
+	@ApiPropertyOptional( {
+		description	: 'Product price',
+		example		: 10,
 	} )
 	@IsNumber()
+	@IsOptional()
 	@Type( () => Number )
 	currentPrice?: number;
 
-	@ApiProperty( {
-		description : 'Product current stock',
-		example     : 1,
+	@ApiPropertyOptional( {
+		description	: 'Product current stock',
+		example		: 1,
 	} )
 	@IsNumber()
+	@IsOptional()
 	@Type( () => Number )
 	currentStock?: number;
 
-    @ApiProperty( {
-		description : 'Product min stock',
-		example     : 1,
+	@ApiPropertyOptional( {
+		description	: 'Product min stock',
+		example		: 1,
 	} )
 	@IsNumber()
+	@IsOptional()
 	@Type( () => Number )
-    minStock?: number;
+	minStock?: number;
 
-    @ApiProperty( {
-		description : 'Product max stock',
-		example     : 1,
+	@ApiPropertyOptional( {
+		description	: 'Product max stock',
+		example		: 1,
 	} )
 	@IsNumber()
+	@IsOptional()
 	@Type( () => Number )
-    maxStock?: number;
+	maxStock?: number;
 
 }
