@@ -120,7 +120,6 @@ export class ProductsController {
 	}
 
 
-
 	@Get( 'technical-specs' )
 	getTechnicalSpecsFilters(): Promise<Record<string, any[]>> {
 		return this.productsService.getTechnicalSpecsFilters();
