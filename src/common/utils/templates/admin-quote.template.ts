@@ -12,6 +12,7 @@ interface AdminQuoteTemplateData {
 		address     : string;
 		email       : string;
 		contactName : string;
+		phoneNumber : string;
 	};
 	items       : IQuoteItem[];
 }
@@ -56,6 +57,10 @@ export function getAdminQuoteTemplate( data : AdminQuoteTemplateData ) : string 
 				<tr>
 					<td class="info-label">Contacto / Nombre</td>
 					<td class="info-value">${ clientData.contactName }</td>
+				</tr>
+				<tr>
+					<td class="info-label">Teléfono</td>
+					<td class="info-value">${ clientData.phoneNumber }</td>
 				</tr>
 			</table>
 		</div>

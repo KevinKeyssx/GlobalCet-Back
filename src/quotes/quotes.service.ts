@@ -504,25 +504,26 @@ export class QuotesService {
 		items       : IQuoteItem[],
 	) : Promise<void> {
 		const clientHtml = getClientQuoteTemplate( {
-			quoteNumber,
-			statusSpanish : 'Pendiente',
-			estimatedTime : '24 a 48 horas hábiles',
-			items,
-            contactName: clientData.contactName,
-            companyName: clientData.companyName,
-		});
+			quoteNumber		: quoteNumber,
+			statusSpanish	: 'Pendiente',
+			estimatedTime	: '24 a 48 horas hábiles',
+			items			: items,
+			contactName		: clientData.contactName,
+			companyName		: clientData.companyName,
+		} );
 
 		const adminHtml = getAdminQuoteTemplate( {
-			quoteNumber,
-			clientData : {
-				companyName : clientData.companyName,
-				rut         : clientData.rut,
-				address     : clientData.address,
-				email       : clientData.email,
-				contactName : clientData.contactName,
+			quoteNumber	: quoteNumber,
+			clientData	: {
+				companyName	: clientData.companyName,
+				rut			: clientData.rut,
+				address		: clientData.address,
+				email		: clientData.email,
+				contactName	: clientData.contactName,
+				phoneNumber	: clientData.phoneNumber,
 			},
-			items,
-		});
+			items		: items,
+		} );
 
 		await this.emailService.sendEmail( {
 			to              : clientData.email,

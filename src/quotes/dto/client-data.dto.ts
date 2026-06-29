@@ -53,4 +53,13 @@ export class ClientDataDto {
 	@IsNotEmpty()
 	contactName : string;
 
+
+	@ApiProperty( {
+		description	: 'Teléfono de contacto del cliente',
+		example		: '+56 9 1234 5678',
+	} )
+	@IsString()
+	@IsNotEmpty()
+	phoneNumber : string;
+
 }

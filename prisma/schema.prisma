@@ -336,7 +336,7 @@ enum QuoteStatus {
 model Quote {
     id           String       @id @default(ulid())
     quoteNumber  String       @unique // Ej: GC-2026-001
-    clientData   Json         // { companyName, taxId (rut), address, contactName, email }
+    clientData   Json         // { companyName, taxId (rut), address, contactName, email, phoneNumber }
     items        Json         // Snapshot: [ { id, name, priceAtMoment, quantity, type } ]
     status       QuoteStatus  @default(PENDING)
     adminNotes   String?      @db.Text
